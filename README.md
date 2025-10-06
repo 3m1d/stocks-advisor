@@ -55,4 +55,10 @@
 
 - cbrstocks: https://t.me/cbrstocks
 
+- Московская биржа: https://iss.moex.com/iss/reference/
+
+- Finam: https://export.finam.ru
+
+- Investing.com: https://www.investing.com/
+
 ---

@@ -1,6 +1,20 @@
 # 📈 Инвестиционный Советник
 
----
+## ⚙️ Установка
+#### 1. Установить `uv`
+https://docs.astral.sh/uv/getting-started/installation/
+
+#### 2. Склонировать репозиторий
+```bash
+git clone https://github.com/3m1d/stocks-advisor.git
+cd stocks-advisor
+```
+
+#### 3. Синхронизировать репозиторий
+```bash
+uv sync
+```
+
 
 ## 👥 Команда проекта
 

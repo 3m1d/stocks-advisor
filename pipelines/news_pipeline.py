@@ -287,13 +287,13 @@ def concatenate_datasets(input_files: list[str], out_file: str) -> pd.DataFrame:
     final_df = pd.concat(dataframes, ignore_index=True)
 
     final_df.date = pd.to_datetime(final_df.date, errors='coerce')
-    final_df = final_df.sort_values(by='date').reset_index(drop=True)
 
-    final_df.to_csv(out_file, na_rep='NULL', index=False)
-
-    print('DONE!\n')
     # слияние дубликатов finance и financies
     final_df.topic = final_df.topic.apply(lambda topic: 'finance' if topic == 'financies' else topic)
+
+    print('DONE!\n')
+    final_df = final_df.sort_values(by='date', ascending=True).reset_index(drop=True)
+    final_df.to_csv(out_file, na_rep='NULL', index=False)
 
     return final_df
 
@@ -340,6 +340,7 @@ def main(input_files: str, out_raw: str, out: str, test: int):
     df = concatenate_datasets(input_file_list, out_raw)
     if test:
         df = df.sample(test)
+        df = df.sort_values(by='date', ascending=True).reset_index(drop=True)
 
     run_news_pipeline(df, out)
 

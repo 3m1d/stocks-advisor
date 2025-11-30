@@ -6,6 +6,13 @@ __pycache__/
 # C extensions
 *.so
 
+*.csv
+*.bin
+*.gz
+
+models/
+catboost_info/
+
 # Distribution / packaging
 .Python
 build/

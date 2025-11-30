@@ -215,3 +215,6 @@ __marimo__/
 
 # Parsing data folder
 notebooks/parsing/testing/data
+
+# Datasets
+*.csv

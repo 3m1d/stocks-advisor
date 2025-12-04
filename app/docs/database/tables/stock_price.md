@@ -6,24 +6,23 @@
 
 ```sql
 CREATE TABLE stock_price (
-    id BIGSERIAL PRIMARY KEY,
-    ticker VARCHAR(20) NOT NULL,
-    begin TIMESTAMP NOT NULL,
-    end TIMESTAMP NOT NULL,
-    open NUMERIC(18, 4) NOT NULL,
-    close NUMERIC(18, 4) NOT NULL,
-    high NUMERIC(18, 4) NOT NULL,
-    low NUMERIC(18, 4) NOT NULL,
-    value NUMERIC(18, 2),
-    volume BIGINT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "id" BIGSERIAL PRIMARY KEY,
+    "ticker" VARCHAR(20) NOT NULL,
+    "begin" TIMESTAMP NOT NULL,
+    "end" TIMESTAMP NOT NULL,
+    "open" NUMERIC(18, 4) NOT NULL,
+    "close" NUMERIC(18, 4) NOT NULL,
+    "high" NUMERIC(18, 4) NOT NULL,
+    "low" NUMERIC(18, 4) NOT NULL,
+    "value" NUMERIC(18, 2),
+    "volume" BIGINT NOT NULL,
+    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT unique_ticker_begin UNIQUE (ticker, begin)
+    CONSTRAINT unique_ticker_begin UNIQUE ("ticker", "begin")
 );
 
-CREATE INDEX idx_stock_price_ticker ON stock_price(ticker);
-CREATE INDEX idx_stock_price_begin ON stock_price(begin);
-CREATE INDEX idx_stock_price_ticker_begin ON stock_price(ticker, begin);
+CREATE INDEX idx_stock_price_ticker ON stock_price("ticker");
+CREATE INDEX idx_stock_price_begin ON stock_price("begin");
 ```
 
 Описание полей:

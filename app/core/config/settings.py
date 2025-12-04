@@ -1,3 +1,4 @@
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -125,3 +126,22 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings():
     return Settings()
+
+
+def setup_logging(settings: Settings | None = None) -> None:
+    if settings is None:
+        settings = get_settings()
+
+    log_level = getattr(logging, settings.app.log_level.upper(), logging.INFO)
+
+    logging.basicConfig(
+        level=log_level,
+        format=settings.logging.format,
+        datefmt=settings.logging.date_format,
+        force=True,
+    )
+
+    logging.getLogger('httpx').setLevel(logging.WARNING)
+    logging.getLogger('httpcore').setLevel(logging.WARNING)
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
+    logging.getLogger('asyncio').setLevel(logging.WARNING)

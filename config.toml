@@ -8,16 +8,6 @@ version = "0.1.0"
 debug = false
 log_level = "INFO"
 
-[database]
-# Database connection settings
-# These values can be overridden by environment variables
-host = "localhost"
-port = 5432
-name = "stocks_advisor"
-user = "postgres"
-# password should be in environment variable: DB_PASSWORD
-# ssl_mode = "prefer"
-
 [moex]
 # MOEX API client settings
 base_url = "https://iss.moex.com/iss"

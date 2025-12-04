@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 from enum import IntEnum, StrEnum
 
 import aiohttp
@@ -16,6 +17,65 @@ class Interval(IntEnum):
     DAY_1 = 24
     WEEK_1 = 7
     MONTH_1 = 31
+
+
+class Engines(StrEnum):
+    """https://iss.moex.com/iss/engines"""
+
+    STOCK = 'stock'  # Фондовый рынок и рынок депозитов
+    STATE = 'state'  # Рынок ГЦБ (размещение)
+    CURRENCY = 'currency'  # Валютный рынок
+    FUTURES = 'futures'  # Срочный рынок
+    COMMODITY = 'commodity'  # Товарный рынок
+    INTERVENTIONS = 'interventions'  # Товарные интервенции
+    OFFBOARD = 'offboard'  # ОТС-система
+    AGR = 'agro'  # Агро
+    OTC = 'otc'  # ОТС с ЦК
+    QUOTES = 'quotes'  # Квоты
+    MONEY = 'money'  # Денежный рынок
+
+
+class Markets(StrEnum):
+    """https://iss.moex.com/iss/engines/<engine>/markets"""
+
+    # engine=currency
+    OTCINDICES = 'otcindices'  # Внебиржевые индексы
+    SELT = 'selt'  # Биржевые сделки с ЦК
+    FUTURES = 'futures'  # Поставочные фьючерсы
+    INDEX = 'index'  # Валютный фиксинг
+    OTC = 'otc'  # Внебиржевой
+
+    # engine=futures
+    FORTS = 'forts'  # Фьючерсы
+    OPTIONS = 'options'  # Опционы
+    FORTSIQS = 'fortsiqs'  # Фьючерсы IQS
+    OPTIONSIQS = 'optionsiqs'  # Опционы IQS
+    MAIN = 'main'  # Срочные инструменты
+
+
+class Boards(StrEnum):
+    """https://iss.moex.com/iss/engines/<engine>/markets/<market>/boards"""
+
+    # engine=currency, market=selt
+    TQBR = 'TQBR'  # Фондовый рынок
+    AUCB = 'AUCB'  # Аукцион ЦБР - адрес.
+    CETS = 'CETS'  # Системные сделки - безадрес.
+    CNGD = 'CNGD'  # Внесистемные сделки- адрес.
+    CURR = 'CURR'  # Дневная сессия
+    FIXN = 'FIXN'  # Фиксинг внесистемный- адрес.
+    FIXS = 'FIXS'  # Фиксинг системный - безадрес.
+    LICU = 'LICU'  # Внесистемные сделки урегулирования - безадрес.
+    SDBP = 'SDBP'  # Крупные сделки - безадрес.
+    SPEC = 'SPEC'  # Поставка - безадресные
+    WAPN = 'WAPN'  # Внесистемные средневзвешенные - адрес.
+    WAPS = 'WAPS'  # Системные средневзвешенные - безадрес.
+
+    # engine=futures, market=forts
+    RFUD = 'RFUD'  # Фьючерсы
+
+
+# объявим аннотацию для удобства
+StockData = list[dict[str, str | int | float]]
 
 
 INTERVAL_DESCRIPTIONS: dict[Interval, str] = {
@@ -47,25 +107,41 @@ class MOEXClient:
         self,
         session: aiohttp.ClientSession,
         ticker: Ticker | str,
-        interval: int,
+        board: Boards,
+        engine: Engines,
+        market: Markets,
         start_date: str,
         end_date: str,
+        interval: int,
     ) -> dict[str, pd.DataFrame]:
         """
-        Извлекает свечи по тикеру
+        Парсит свечи по тикеру из MOEX
 
         Args:
             session: aiohttp client session
             ticker: Тикер
+            engine: Engine
+            market: Market
+            board: Board
+            start_date: Дата начала парсинга
+            end_date: Дата окончания парсинга
             interval: Интервал
-            start_date: Начальная дата в формате "YYYY-MM-DD"
-            end_date: Конечная дата в формате "YYYY-MM-DD"
 
         Returns:
-            {<ticker>: <candles DataFrame>}
+            Словарь тикер -> свечи
         """
         try:
-            res = await get_board_candles(session, ticker, interval, start_date, end_date)
+            # получаем данные по переданному тикеру за указанный период
+            res = await get_board_candles(
+                session,
+                ticker,
+                interval,
+                start_date,
+                end_date,
+                board=board.value,
+                market=market.value,
+                engine=engine.value,
+            )
             if res:
                 df = pd.DataFrame(res)
 
@@ -74,48 +150,75 @@ class MOEXClient:
 
                 df['begin'] = pd.to_datetime(df['begin'])
 
-                # Normalize datetime for daily, weekly, monthly intervals
-                if interval in [Interval.DAY_1, Interval.WEEK_1, Interval.MONTH_1]:
+                if interval in [24, 7, 31]:
                     df['begin'] = df['begin'].dt.normalize()
 
-                # Reorder columns: begin first
                 if 'begin' in df.columns:
                     cols = ['begin'] + [col for col in df.columns if col != 'begin']
-                    df: DataFrame = df[cols]
+                    df = df[cols]
 
                 df['ticker'] = ticker
                 return {ticker: df}
             else:
                 return {ticker: pd.DataFrame()}
         except Exception as e:
-            print(f'Ошибка парсинга. Не удалось получить данные для {ticker}: {e}')
+            print(f'Ошибка парсинга. Не удалось получить данные для {ticker}, {e}')
             return {ticker: pd.DataFrame()}
 
     async def get_data(
         self,
         tickers: list[Ticker],
-        start_date: str,
-        end_date: str,
+        engine: Engines,
+        market: Markets,
+        board: Boards,
+        start_date: datetime,
+        end_date: datetime = datetime.now(),
         interval: int = Interval.DAY_1,
     ) -> dict[str, pd.DataFrame]:
         """
-        Извлекает свечи из MOEX сразу по нескольку тикеров.
+        Парсит свечи из MOEX сразу по нескольку тикеров.
 
         Args:
             tickers: Список тикеров
-            start_date: Начальная дата в формате "YYYY-MM-DD"
-            end_date: Конечная дата в формате "YYYY-MM-DD"
+            engine: Engine
+            market: Market
+            board: Board
+            start_date: Дата начала парсинга
+            end_date: Дата окончания парсинга
             interval: Интервал
 
         Returns:
             Словарь тикер -> свечи
         """
-        if interval not in list(Interval):
-            raise ValueError(f'Неверный интервал. Допустимые значения: {[i.value for i in Interval]}')
+        if interval not in Interval:
+            raise ValueError(f'Неверный интервал. Допустимые значения: {Interval}')
 
-        async with aiohttp.ClientSession() as session:
-            coros = [self._fetch_ticker_data(session, ticker, interval, start_date, end_date) for ticker in tickers]
+        end_date_formatted = end_date.strftime('%Y-%m-%d %H:%M:%S')
+        start_date_formatted = start_date.strftime('%Y-%m-%d %H:%M:%S')
+
+        # Увеличиваем таймауты для MOEX API
+        timeout = aiohttp.ClientTimeout(
+            connect=30,  # время подключения
+            sock_read=60,  # время чтения данных
+            total=120,  # общий таймаут
+        )
+
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            coros = [
+                self._fetch_ticker_data(
+                    session,
+                    ticker,
+                    board,
+                    engine,
+                    market,
+                    start_date_formatted,
+                    end_date_formatted,
+                    interval,
+                )
+                for ticker in tickers
+            ]
             stock_data = await asyncio.gather(*coros)
 
-        stock_data_dict = {k: v for d in stock_data for k, v in d.items()}
-        return stock_data_dict
+        # разворачиваем список словарей в один словарь
+        stock_data = {ticker: data for element in stock_data for ticker, data in element.items()}
+        return stock_data

@@ -5,7 +5,6 @@ from enum import IntEnum, StrEnum
 import aiohttp
 import pandas as pd
 from aiomoex import get_board_candles
-from pandas.core.frame import DataFrame
 
 
 class Interval(IntEnum):
@@ -145,18 +144,8 @@ class MOEXClient:
             if res:
                 df = pd.DataFrame(res)
 
-                if 'end' in df.columns:
-                    df = df.drop('end', axis=1)
-
                 df['begin'] = pd.to_datetime(df['begin'])
-
-                if interval in [24, 7, 31]:
-                    df['begin'] = df['begin'].dt.normalize()
-
-                if 'begin' in df.columns:
-                    cols = ['begin'] + [col for col in df.columns if col != 'begin']
-                    df = df[cols]
-
+                df['end'] = pd.to_datetime(df['end'])
                 df['ticker'] = ticker
                 return {ticker: df}
             else:

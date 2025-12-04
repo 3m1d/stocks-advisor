@@ -1,5 +1,3 @@
-"""Configuration module for the application."""
-
 from app.core.config.settings import (
     APISettings,
     AppSettings,

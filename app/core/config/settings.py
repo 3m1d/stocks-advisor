@@ -12,8 +12,6 @@ from pydantic_settings import (
 
 
 class AppSettings(BaseModel):
-    """App-level settings"""
-
     name: str = 'stocks-advisor'
     version: str = '0.1.0'
     debug: bool = False
@@ -21,7 +19,7 @@ class AppSettings(BaseModel):
 
 
 class DatabaseSettings(BaseModel):
-    """Database connection settings."""
+    """Настройки PostgreSQL"""
 
     host: str = Field(
         default_factory=lambda: os.getenv('DB_HOST', ''),
@@ -51,7 +49,7 @@ class DatabaseSettings(BaseModel):
 
 
 class MOEXSettings(BaseModel):
-    """MOEX API client settings."""
+    """Настройки MOEX API клиента"""
 
     base_url: str = 'https://iss.moex.com/iss'
     timeout_connect: int = 30
@@ -60,7 +58,7 @@ class MOEXSettings(BaseModel):
 
 
 class APISettings(BaseModel):
-    """FastAPI server settings."""
+    """Настройки сервера FastAPI"""
 
     host: str = '0.0.0.0'
     port: int = 8000
@@ -69,19 +67,18 @@ class APISettings(BaseModel):
 
 
 class LoggingSettings(BaseModel):
-    """Logging configuration."""
+    """Настройки логгера"""
 
     format: str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     date_format: str = '%Y-%m-%d %H:%M:%S'
 
 
 class Settings(BaseSettings):
-    """Main application settings.
+    """Настройки приложения.
 
-    Loads configuration from:
-    1. config.toml
-    2. Environment variables
-    3. .env file
+    Откуда берем настройки:
+    - Основные настройки приложения: config.toml
+    - Секреты: .env файл или переменные окружения
     """
 
     app: AppSettings = Field(default_factory=AppSettings)

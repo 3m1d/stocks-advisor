@@ -8,7 +8,6 @@ from app.core.config.settings import (
     MOEXSettings,
     Settings,
     get_settings,
-    settings,
 )
 
 __all__ = [
@@ -19,6 +18,4 @@ __all__ = [
     'APISettings',
     'LoggingSettings',
     'get_settings',
-    'settings',
 ]
-

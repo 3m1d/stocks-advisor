@@ -1,3 +1,4 @@
+from functools import lru_cache
 import os
 from pathlib import Path
 from typing import Literal
@@ -119,3 +120,8 @@ class Settings(BaseSettings):
             sources.append(TomlConfigSettingsSource(settings_cls, toml_file=str(config_file)))
 
         return tuple(sources)
+
+
+@lru_cache
+def get_settings():
+    return Settings()

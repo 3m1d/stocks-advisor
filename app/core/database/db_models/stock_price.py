@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import TIMESTAMP, BigInteger, Index, Numeric, String, UniqueConstraint
+from sqlalchemy import TIMESTAMP, BigInteger, Index, Numeric, String, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database.db_models.base import Base
@@ -32,10 +32,10 @@ class StockPrice(Base):
     volume: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
     # Дата создания записи в БД
-    created_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP,
-        nullable=False,
-        server_default='CURRENT_TIMESTAMP',
+        nullable=True,
+        server_default=text('CURRENT_TIMESTAMP'),
     )
 
     __table_args__ = (

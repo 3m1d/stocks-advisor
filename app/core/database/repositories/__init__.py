@@ -1,3 +1,3 @@
-from app.core.database.repositories.stock_price import StockPriceRepository
+from app.core.database.repositories.asset_candle import AssetCandleRepository
 
-__all__ = ['StockPriceRepository']
+__all__ = ['AssetCandleRepository']

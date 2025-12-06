@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.core.config.settings import get_settings
 from app.core.database.db_models.base import Base
-from app.core.database.db_models import stock_price  # noqa: F401
+from app.core.database.db_models import asset_candle  # noqa: F401
 
 
 # this is the Alembic Config object, which provides

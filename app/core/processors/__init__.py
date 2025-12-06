@@ -1,4 +1,3 @@
-from app.core.processors.stock_parser import StockParserProcessor
+from app.core.processors.asset_parser import AssetParserProcessor
 
-__all__ = ['StockParserProcessor']
-
+__all__ = ['AssetParserProcessor']

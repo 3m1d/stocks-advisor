@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from app.core.config import get_settings, setup_logging
 from app.core.database import DBSession, engine
-from app.core.processors import StockParserProcessor
+from app.core.processors import AssetParserProcessor
 
 # Setup logging before creating the app
 settings = get_settings()
@@ -34,7 +34,7 @@ async def root():
 @app.post('/parse')
 async def parse_stock_data(start_date: date, end_date: date, session: DBSession):
     """Parse MOEX stock data for a date range and insert into database."""
-    processor = StockParserProcessor(session)
+    processor = AssetParserProcessor(session)
     count = await processor.parse(
         datetime.combine(start_date, datetime.min.time()),
         datetime.combine(end_date, datetime.min.time()),

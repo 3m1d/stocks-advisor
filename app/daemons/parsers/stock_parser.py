@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime
 
 from app.core.database import get_db_session
-from app.core.processors import StockParserProcessor
+from app.core.processors import AssetParserProcessor
 from app.daemons.base import BaseDaemon
 
 
@@ -16,7 +16,7 @@ class StockParserDaemon(BaseDaemon):
 
     async def _run_async(self) -> int:
         async with get_db_session() as session:
-            processor = StockParserProcessor(session)
+            processor = AssetParserProcessor(session)
             return await processor.parse(self.start_dt, self.end_dt)
 
     def run(self) -> None:

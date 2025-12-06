@@ -3,10 +3,10 @@ from typing import Any
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database.db_models.stock_price import StockPrice
+from app.core.database.db_models.asset_candle import AssetCandle
 
 
-class StockPriceRepository:
+class AssetCandleRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
@@ -15,7 +15,7 @@ class StockPriceRepository:
         count = 0
         for record in records:
             stmt = (
-                insert(StockPrice)
+                insert(AssetCandle)
                 .values(
                     ticker=record['ticker'],
                     begin=record['begin'],

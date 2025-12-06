@@ -37,6 +37,10 @@ class Engines(StrEnum):
 class Markets(StrEnum):
     """https://iss.moex.com/iss/engines/<engine>/markets"""
 
+    # engine=stock
+    SHARES = 'shares'  # Акции
+    BONDS = 'bonds'  # Облигации
+
     # engine=currency
     OTCINDICES = 'otcindices'  # Внебиржевые индексы
     SELT = 'selt'  # Биржевые сделки с ЦК

@@ -1,4 +1,4 @@
-# Stocks Advisor
+# Инвестиционный Советник
 
 ## О приложении
 
@@ -87,8 +87,8 @@ flowchart TB
 - **`core/`** — основная бизнес-логика приложения:
   - `clients/` — клиенты для внешних API
   - `database/` — работа с базой данных (БД)
-    - `db_models` - SQLAlchemy модели таблиц БД. Из них alembic генерирует миграции в БД
-    - `repository` - CRUD операции с таблицами БД
+    - `db_models/` - SQLAlchemy модели таблиц БД. Из них alembic генерирует миграции в БД
+    - `repository/` - CRUD операции с таблицами БД
   - `processors/` - обработчики данных
   - `schemas/` - Pydantic схемы данных
 
@@ -99,6 +99,28 @@ flowchart TB
 - **`web/`** — веб-приложение на FastAPI
 
 ## Разработка
+
+### Начало работы
+
+1. Установить `uv`
+2. Запустить `uv sync`
+3. Создать в корне репозитория файл `.env` с содержимым:
+
+```env
+DATABASE__HOST=<postgresql IP>
+DATABASE__PORT=5432
+DATABASE__NAME=stocks_advisor_db
+DATABASE__USER=<user>
+DATABASE__PASSWORD=<password>
+```
+
+Поля `DATABASE__HOST`, `DATABASE__USER` и `DATABASE__PASSWORD` нужно заполнить самостоятельно.
+
+4. Проверить, что приложение стартует:
+
+```bash
+uv run fastapi dev app/web/main.py
+```
 
 ### Как подключиться к БД?
 
@@ -136,6 +158,18 @@ DATABASE__PASSWORD=<password>
 
 При добавлении новой модели SQLALchemy или при изменнии существующей модели, нужно:
 
-- Запустить `uv run alembic -c app/alembic.ini revision --autogenerate -m <название_миграции>` (или `make alembic-generate-migration name=<название_миграции>`). Эта команда создаст миграцию в директории `app/alembic/versions`.
-- Проверить созданную миграцию
-- Запустить `uv run alembic upgrade head` (или `alembic-run-migration`). Эта команда выполнит миграцию в БД.
+1. Запустить создание миграции (в директории `app/alembic/versions`):
+
+```bash
+uv run alembic -c app/alembic.ini revision --autogenerate -m <название_миграции>
+# или make alembic-generate-migration name=<название_миграции>
+```
+
+2. Проверить созданную миграцию. Нужно соблюдать осторожность с миграциями, которые изменяют/удаляют поля таблиц, иначе есть риск потери данных в БД.
+
+3. Запустить выполнение миграции в БД:
+
+```bash
+uv run alembic upgrade head
+# или alembic-run-migration
+```

@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "aiomoex>=2.1.2",
-    "alembic>=1.17.2",
+    "alembic[tz]>=1.17.2",
     "asyncpg>=0.31.0",
     "click>=8.3.0",
     "fastapi[standard]>=0.123.8",

@@ -23,26 +23,11 @@ class AppSettings(BaseModel):
 class DatabaseSettings(BaseModel):
     """Настройки PostgreSQL"""
 
-    host: str = Field(
-        default_factory=lambda: os.getenv('DB_HOST', ''),
-        description='Host (DB_HOST env)',
-    )
-    port: str = Field(
-        default_factory=lambda: os.getenv('DB_PORT', ''),
-        description='Port (DB_PORT env)',
-    )
-    name: str = Field(
-        default_factory=lambda: os.getenv('DB_DATABASE', ''),
-        description='Database (DB_DATABASE env)',
-    )
-    user: str = Field(
-        default_factory=lambda: os.getenv('DB_USER', ''),
-        description='User (DB_USER env)',
-    )
-    password: str = Field(
-        default_factory=lambda: os.getenv('DB_PASSWORD', ''),
-        description='Password (DB_PASSWORD env)',
-    )
+    host: str = Field(default='', description='Host (DATABASE__HOST env)')
+    port: str = Field(default='', description='Port (DATABASE__PORT env)')
+    name: str = Field(default='', description='Database (DATABASE__NAME env)')
+    user: str = Field(default='', description='User (DATABASE__USER env)')
+    password: str = Field(default='', description='Password (DATABASE__PASSWORD env)')
     ssl_mode: str = Field(default='prefer', description='SSL mode for PostgreSQL connection')
 
     @model_validator(mode='after')

@@ -25,7 +25,7 @@ class StockParserDaemon(BaseDaemon):
 
 def _parse_datetime(value: str) -> datetime:
     """Parse datetime with flexible format."""
-    for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d']:
+    for fmt in ['%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d']:
         try:
             return datetime.strptime(value, fmt)
         except ValueError:
@@ -38,8 +38,8 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description='Parse MOEX stock data')
-    parser.add_argument('--start', type=str, required=True, help='Start datetime (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)')
-    parser.add_argument('--end', type=str, required=True, help='End datetime (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)')
+    parser.add_argument('--start', type=str, required=True, help='Start datetime (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)')
+    parser.add_argument('--end', type=str, required=True, help='End datetime (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)')
 
     args = parser.parse_args()
 

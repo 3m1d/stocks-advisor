@@ -1,7 +1,7 @@
-import asyncio
 from datetime import datetime
 
-from app.core.database import get_db_session
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.processors import AssetParserProcessor
 from app.daemons.base import BaseDaemon
 
@@ -14,13 +14,9 @@ class AssetParserDaemon(BaseDaemon):
         self.start_dt = start_dt
         self.end_dt = end_dt
 
-    async def _run_async(self) -> int:
-        async with get_db_session() as session:
-            processor = AssetParserProcessor(session)
-            return await processor.parse(self.start_dt, self.end_dt)
-
-    def run(self) -> None:
-        asyncio.run(self._run_async())
+    async def execute(self, session: AsyncSession) -> None:
+        processor = AssetParserProcessor(session)
+        await processor.parse(self.start_dt, self.end_dt)
 
 
 def _parse_datetime(value: str) -> datetime:

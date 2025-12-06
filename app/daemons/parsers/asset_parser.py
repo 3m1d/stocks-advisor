@@ -6,7 +6,7 @@ from app.core.processors import AssetParserProcessor
 from app.daemons.base import BaseDaemon
 
 
-class StockParserDaemon(BaseDaemon):
+class AssetParserDaemon(BaseDaemon):
     """Daemon for parsing MOEX stock data."""
 
     def __init__(self, start_dt: datetime, end_dt: datetime):
@@ -34,7 +34,7 @@ def _parse_datetime(value: str) -> datetime:
 
 
 def main():
-    """CLI entrypoint for stock parser daemon."""
+    """CLI entrypoint for asset parser daemon."""
     import argparse
 
     parser = argparse.ArgumentParser(description='Parse MOEX stock data')
@@ -46,7 +46,7 @@ def main():
     start_dt = _parse_datetime(args.start)
     end_dt = _parse_datetime(args.end)
 
-    daemon = StockParserDaemon(start_dt, end_dt)
+    daemon = AssetParserDaemon(start_dt, end_dt)
     daemon.run()
 
 

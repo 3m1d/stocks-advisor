@@ -2,7 +2,7 @@
 
 ## О приложении
 
-`Инвестиционный советник` - приложение, занимающееся прогнозированием цены на акци основываясь на стоимости акций и новостях.
+`Инвестиционный советник` - приложение, занимающееся прогнозированием цен на акции, основываясь на исторических данных и новостях.
 
 ### Архитектура
 
@@ -25,9 +25,11 @@ flowchart TB
         NW[("news<br>─────────<br>- Источник<br>- Текст новости")]
     end
 
-    subgraph Process["Process"]
-        SA["stocks-analyzer<br>- Агрегирование<br>- Тех. индикаторы"]
-        NA["news-analyzer<br>- Natasha<br>- RuBERT"]
+    subgraph ProcessStocks["Process stocks"]
+        SA["stocks-analyzer<br>─────────<br>- Агрегирование<br>- Тех. индикаторы"]
+    end
+    subgraph ProcessNews["Process news"]
+        NA["news-analyzer<br>─────────<br>- Natasha<br>- RuBERT"]
     end
 
     subgraph Serve["Serve"]
@@ -78,7 +80,7 @@ flowchart TB
 
 ## Структура приложения
 
-- **`alembic/`** - конфиг alembic и миграции в БД
+- **`alembic/`** - миграции в БД
 
 - **`core/`** — основная бизнес-логика приложения:
   - `clients/` — клиенты для внешних API

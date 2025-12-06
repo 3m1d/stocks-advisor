@@ -2,12 +2,11 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime
 
 from fastapi import FastAPI
-from sqlalchemy.dialects.postgresql import insert
 
 from app.core.clients.moex import Boards, Engines, Interval, Markets, MOEXClient, Ticker
 from app.core.config import get_settings, setup_logging
 from app.core.database import DBSession, engine
-from app.core.database.db_models.stock_price import StockPrice
+from app.core.database.repositories import StockPriceRepository
 
 # Setup logging before creating the app
 settings = get_settings()
@@ -49,30 +48,15 @@ async def parse_stock_data(start_date: date, end_date: date, session: DBSession)
         interval=Interval.HOUR_1,
     )
 
+    repo = StockPriceRepository(session)
     inserted_count = 0
-    for ticker, df in data.items():
+
+    for df in data.values():
         if df.empty:
             continue
 
         records = df.to_dict('records')
-        for record in records:
-            stmt = (
-                insert(StockPrice)
-                .values(
-                    ticker=record['ticker'],
-                    begin=record['begin'],
-                    end=record['end'],
-                    open=record['open'],
-                    close=record['close'],
-                    high=record['high'],
-                    low=record['low'],
-                    value=record.get('value'),
-                    volume=record['volume'],
-                )
-                .on_conflict_do_nothing(constraint='unique_ticker_begin')
-            )
-
-            await session.execute(stmt)
-            inserted_count += 1
+        count = await repo.bulk_upsert(records)
+        inserted_count += count
 
     return {'message': f'Parsed {start_date} to {end_date}', 'records_processed': inserted_count}

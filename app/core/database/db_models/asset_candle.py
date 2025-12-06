@@ -6,10 +6,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database.db_models.base import Base
 
 
-class StockPrice(Base):
+class AssetCandle(Base):
     """Свечи с MOEX"""
 
-    __tablename__ = 'stock_price'
+    __tablename__ = 'asset_candle'
 
     # ID
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -40,9 +40,9 @@ class StockPrice(Base):
 
     __table_args__ = (
         UniqueConstraint('ticker', 'begin', name='unique_ticker_begin'),
-        Index('idx_stock_price_ticker', 'ticker'),
-        Index('idx_stock_price_begin', 'begin'),
+        Index('idx_asset_candle_ticker', 'ticker'),
+        Index('idx_asset_candle_begin', 'begin'),
     )
 
     def __repr__(self) -> str:
-        return f'<StockPrice(id={self.id}, ticker={self.ticker!r}, begin={self.begin}, close={self.close})>'
+        return f'<AssetCandle(id={self.id}, ticker={self.ticker!r}, begin={self.begin}, close={self.close})>'

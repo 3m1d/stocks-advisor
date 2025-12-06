@@ -24,6 +24,7 @@ dependencies = [
     "setuptools>=80.9.0",
     "slovnet>=0.6.0",
     "sqlalchemy>=2.0.44",
+    "sqlmodel>=0.0.27",
     "ta>=0.11.0",
     "torch>=2.9.0",
     "trafilatura>=2.0.0",

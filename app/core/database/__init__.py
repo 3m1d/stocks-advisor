@@ -1,3 +1,5 @@
-from app.core.database.session import DBSession, async_session_factory, engine, get_db_session, get_session
+from app.core.database.db_models.asset_candle import AssetCandle
+from app.core.database.repositories.asset_candle import AssetCandleRepository
+from app.core.database.session import DBSession, engine, get_db_session, get_session
 
-__all__ = ['engine', 'async_session_factory', 'get_session', 'get_db_session', 'DBSession']
+__all__ = ['engine', 'get_session', 'get_db_session', 'DBSession', 'AssetCandle', 'AssetCandleRepository']

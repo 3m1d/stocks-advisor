@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clients.moex import Boards, Engines, Interval, Markets, MOEXClient, Ticker
-from app.core.database.repositories import AssetCandleRepository
+from app.core.database import AssetCandleRepository
 
 logger = logging.getLogger(__name__)
 

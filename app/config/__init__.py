@@ -1,4 +1,4 @@
-from app.core.config.settings import (
+from app.config.settings import (
     APISettings,
     AppSettings,
     DatabaseSettings,

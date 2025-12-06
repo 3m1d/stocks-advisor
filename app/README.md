@@ -82,9 +82,10 @@ flowchart TB
 
 - **`alembic/`** - миграции в БД
 
+- **`config/`** — настройки приложения
+
 - **`core/`** — основная бизнес-логика приложения:
   - `clients/` — клиенты для внешних API
-  - `config/` — настройки приложения
   - `database/` — работа с базой данных (БД)
     - `db_models` - SQLAlchemy модели таблиц БД. Из них alembic генерирует миграции в БД
     - `repository` - CRUD операции с таблицами БД
@@ -118,7 +119,7 @@ DATABASE__PASSWORD=<password>
 Если код запускается локально на ноутбуке, то нужно сначала прокинуть порт БД через SSH:
 
 ```bash
-ssh -L 5432:<postgresql IP>:5432 user@<server IP> -p <ssh port> -i <ssh key>
+ssh -L 5432:<postgresql IP>:5432 <user>@<server IP> -p <ssh port>
 ```
 
 И указать в `.env` адрес `localhost`:

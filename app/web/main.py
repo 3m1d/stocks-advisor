@@ -3,7 +3,7 @@ from datetime import date, datetime
 
 from fastapi import FastAPI
 
-from app.core.config import get_settings, setup_logging
+from app.config import get_settings, setup_logging
 from app.core.database import DBSession, engine
 from app.core.processors import AssetParserProcessor
 

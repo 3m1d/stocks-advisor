@@ -1,7 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 
-from app.core.config import get_settings, setup_logging
+from app.config import get_settings, setup_logging
 
 
 class BaseDaemon(ABC):

@@ -21,4 +21,6 @@
 
 При добавлении новой модели SQLALchemy или при изменнии существующей модели, нужно:
 
-- Выполнить
+- Запустить `uv run alembic -c app/alembic.ini revision --autogenerate -m <Название миграции>` (или `make alembic-generate-migration`)
+- Проверить созданную миграцию
+- Запустить `uv run alembic upgrade head` (или `alembic-run-migration`)

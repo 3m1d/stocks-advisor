@@ -19,3 +19,10 @@ alembic-generate-migration:
 alembic-run-migration:
 	uv run alembic upgrade head
 
+
+###############
+# App
+###############
+
+fastapi-run-dev:
+	uv run fastapi dev app/web/main.py

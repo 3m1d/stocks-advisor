@@ -1,8 +1,8 @@
 """stock_price_table
 
-Revision ID: 108ecf49ea0d
+Revision ID: 3062f892d62c
 Revises: 
-Create Date: 2025-12-06 18:06:49.767536+03:00
+Create Date: 2025-12-06 18:12:50.384097+03:00
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '108ecf49ea0d'
+revision: str = '3062f892d62c'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -32,7 +32,7 @@ def upgrade() -> None:
     sa.Column('low', sa.Numeric(precision=18, scale=4), nullable=False),
     sa.Column('value', sa.Numeric(precision=18, scale=2), nullable=True),
     sa.Column('volume', sa.BigInteger(), nullable=False),
-    sa.Column('created_at', sa.TIMESTAMP(), server_default='CURRENT_TIMESTAMP', nullable=True),
+    sa.Column('created_at', sa.TIMESTAMP(), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('ticker', 'begin', name='unique_ticker_begin')
     )

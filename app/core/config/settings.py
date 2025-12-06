@@ -46,8 +46,12 @@ class DatabaseSettings(BaseModel):
     ssl_mode: str = Field(default='prefer', description='SSL mode for PostgreSQL connection')
 
     @property
-    def url(self) -> str:
+    def url_async(self) -> str:
         return f'postgresql+asyncpg://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}'
+
+    @property
+    def url_sync(self) -> str:
+        return f'postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}'
 
 
 class MOEXSettings(BaseModel):

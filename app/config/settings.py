@@ -42,11 +42,11 @@ class DatabaseSettings(BaseModel):
         missing = [field for field, value in required_fields.items() if not value]
         if missing:
             env_vars = {
-                'host': 'DB_HOST',
-                'port': 'DB_PORT',
-                'name': 'DB_DATABASE',
-                'user': 'DB_USER',
-                'password': 'DB_PASSWORD',
+                'host': 'DATABASE__HOST',
+                'port': 'DATABASE__PORT',
+                'name': 'DATABASE__NAME',
+                'user': 'DATABASE__USER',
+                'password': 'DATABASE__PASSWORD',
             }
             missing_env_vars = [env_vars[field] for field in missing]
             raise ValueError(

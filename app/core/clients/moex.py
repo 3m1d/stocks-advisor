@@ -165,7 +165,7 @@ class MOEXClient:
         market: Markets,
         board: Boards,
         start_date: datetime,
-        end_date: datetime = datetime.now(),
+        end_date: datetime | None = None,
         interval: int = Interval.DAY_1,
     ) -> dict[str, pd.DataFrame]:
         """
@@ -177,12 +177,15 @@ class MOEXClient:
             market: Market
             board: Board
             start_date: Дата начала парсинга
-            end_date: Дата окончания парсинга
+            end_date: Дата окончания парсинга (по умолчанию - текущее время)
             interval: Интервал
 
         Returns:
             Словарь тикер -> свечи
         """
+        if end_date is None:
+            end_date = datetime.now()
+
         if interval not in Interval:
             raise ValueError(f'Неверный интервал. Допустимые значения: {Interval}')
 

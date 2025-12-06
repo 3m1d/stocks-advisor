@@ -13,11 +13,11 @@ alembic-generate-migration:
 		echo "Error: name is required. Usage: make alembic-generate-migration name=<migration_name>"; \
 		exit 1; \
 	fi
-	uv run alembic revision --autogenerate -m "$(name)"
+	uv run alembic -c $(ALEMBIC_CONFIG) revision --autogenerate -m "$(name)"
 
 # Применить миграцию
 alembic-run-migration:
-	uv run alembic upgrade head
+	uv run alembic -c $(ALEMBIC_CONFIG) upgrade head
 
 
 ###############

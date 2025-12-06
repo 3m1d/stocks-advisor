@@ -32,9 +32,9 @@ class StockPrice(Base):
     volume: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
     # Дата создания записи в БД
-    created_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP,
-        nullable=False,
+        nullable=True,
         server_default='CURRENT_TIMESTAMP',
     )
 

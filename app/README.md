@@ -8,21 +8,12 @@
 
 ```mermaid
 flowchart TB
-    subgraph External["Внешние источники"]
-        MOEX["🏦 MOEX API"]
-        VED["📰 Ведомости"]
-        KOM["📰 Коммерсант"]
-        INT["📰 Интерфакс"]
-    end
-
     subgraph Parse["Parse"]
         MP["asset_parser"]
-        NP["news_parser"]
     end
 
     subgraph DB["PostgreSQL"]
         AR[("asset_candle<br>─────────<br>- Сырые данные MOEX<br>- Тикер, OHLCV")]
-        NW[("news<br>─────────<br>- Источник<br>- Текст новости<br>- Sentiment")]
     end
 
     subgraph Serve["Serve"]
@@ -31,15 +22,10 @@ flowchart TB
 
     USER(("👤 User"))
 
-    MOEX -->|Цены активов| MP
-    VED -->|Новости| NP
-    KOM -->|Новости| NP
-    INT -->|Новости| NP
+    MOEX --> MP
 
-    MP -->|Свечи| AR
-    NP -->|Текст, тикеры, sentiment| NW
+    MP --> AR
 
-    NW --> WEB
     AR --> WEB
 
     WEB --> USER
@@ -50,7 +36,6 @@ flowchart TB
 #### 1. Парсинг и обработка данных
 
 - Парсит "Японские свечи" с MOEX
-- Парсит новости из различных источников и обрабатывает их (считает sentiment, матчинг с тикером и т.п.)
 
 #### 2. Прогнозирование
 

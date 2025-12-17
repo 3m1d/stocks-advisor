@@ -35,7 +35,12 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         request_body, request_size_bytes = await self._parse_request_body(request)
         response, response_time_ms = await self._process_request(request, call_next)
-        response_body = await self._parse_response_body(request, response)
+
+        if path == '/history':
+            # Don't log history responses
+            response_body = {}
+        else:
+            response_body = await self._parse_response_body(request, response)
 
         status_code = response.status_code
 

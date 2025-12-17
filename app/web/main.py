@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from app.config import get_settings, setup_logging
 from app.core.database import DBSession, engine
 from app.core.processors import AssetParserProcessor
+from app.web.middleware.request_logging import RequestLoggingMiddleware
 
 # Setup logging before creating the app
 settings = get_settings()
@@ -24,6 +25,9 @@ app = FastAPI(
     debug=settings.app.debug,
     lifespan=lifespan,
 )
+
+# Middleware для сохранения истории запросов
+app.add_middleware(RequestLoggingMiddleware)
 
 
 @app.get('/')

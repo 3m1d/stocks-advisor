@@ -1,3 +1,6 @@
+from sqlalchemy.sql.selectable import Select
+
+
 from datetime import datetime
 from typing import Any
 
@@ -35,3 +38,36 @@ class RequestHistoryRepository:
         self.session.add(record)
         await self.session.flush()
         return record
+
+    async def get_all(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        endpoint: str | None = None,
+        method: HTTPMethodEnum | None = None,
+    ) -> list[RequestHistory]:
+        q: Select[Tuple[RequestHistory]] = select(RequestHistory).order_by(RequestHistory.created_at.desc())
+
+        if endpoint:
+            q = q.where(RequestHistory.endpoint == endpoint)
+        if method:
+            q = q.where(RequestHistory.method == method)
+
+        q = q.limit(limit).offset(offset)
+        result = await self.session.execute(q)
+        return list(result.scalars().all())
+
+    async def count(
+        self,
+        endpoint: str | None = None,
+        method: HTTPMethodEnum | None = None,
+    ) -> int:
+        stmt = select(func.count(RequestHistory.id))
+
+        if endpoint:
+            stmt = stmt.where(RequestHistory.endpoint == endpoint)
+        if method:
+            stmt = stmt.where(RequestHistory.method == method)
+
+        result = await self.session.execute(stmt)
+        return result.scalar_one()

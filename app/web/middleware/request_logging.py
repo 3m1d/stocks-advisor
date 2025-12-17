@@ -17,8 +17,15 @@ logger = logging.getLogger(__name__)
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Writes requests history into database"""
 
+    IGNORED_PATHS = (
+        '/history',
+        '/stats',
+        '/openapi.json',
+        '/docs',
+        '/redoc',
+    )
+
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        # Uze
         request_datetime = datetime.now(zoneinfo.ZoneInfo('Europe/Moscow')).replace(tzinfo=None)
 
         if request.method not in HTTPMethodEnum:
@@ -35,14 +42,13 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         method = HTTPMethodEnum(request.method)
         path = request.url.path
 
+        if path in self.IGNORED_PATHS:
+            return await call_next(request)
+
         request_body, query_params, request_size_bytes = await self._parse_request_body(request)
         response, response_time_ms = await self._process_request(request, call_next)
 
-        if path == '/history':
-            # Don't log history responses
-            response_body = {}
-        else:
-            response_body = await self._parse_response_body(path, method, response)
+        response_body = await self._parse_response_body(path, method, response)
 
         status_code = response.status_code
 
@@ -110,8 +116,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     ):
         response_body = {}
         try:
-            if response.body:
+            if hasattr(response, 'body'):
                 body: bytes = await response.body
+
+                if len(body) >= 10_000:  # 10 KB
+                    response_body = {}
 
                 if body:
                     body_utf8 = body.decode('utf-8')

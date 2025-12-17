@@ -1,5 +1,4 @@
 import logging
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -89,6 +88,15 @@ class LoggingSettings(BaseModel):
     date_format: str = '%Y-%m-%d %H:%M:%S'
 
 
+class SecuritySettings(BaseModel):
+    """Настройки безопасности"""
+
+    delete_history_token: str = Field(
+        default='',
+        description='Token that allows to delete entire history (SECURITY__DELETE_HISTORY_TOKEN env)',
+    )
+
+
 class Settings(BaseSettings):
     """Настройки приложения.
 
@@ -102,6 +110,7 @@ class Settings(BaseSettings):
     moex: MOEXSettings = Field(default_factory=MOEXSettings)
     api: APISettings = Field(default_factory=APISettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
+    security: SecuritySettings = Field(default_factory=SecuritySettings)
 
     model_config = SettingsConfigDict(
         env_file='.env',

@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 
-from fastapi import FastAPI, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 
 from app.config import get_settings, setup_logging
 from app.core.database import DBSession, RequestHistoryRepository, engine
@@ -80,8 +80,12 @@ async def get_history(
 @app.delete('/history', response_model=HistoryDeleteResponse)
 async def delete_history(
     session: DBSession,
+    x_api_token: str = Header(..., alias='X-API-Token', description='API token'),
 ) -> HistoryDeleteResponse:
     """Deletes entire requests history"""
+    if x_api_token != settings.security.delete_history_token:
+        raise HTTPException(status_code=403, detail='Invalid token')
+
     repo: RequestHistoryRepository = RequestHistoryRepository(session)
     deleted_count = await repo.delete_all()
     await session.commit()

@@ -38,6 +38,7 @@ class RequestHistory(Base):
     status_code: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
     request_body: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    query_params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     response_body: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     request_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)

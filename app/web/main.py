@@ -1,13 +1,13 @@
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 
-from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi import FastAPI, Query
 
 from app.config import get_settings, setup_logging
 from app.core.database import DBSession, RequestHistoryRepository, engine
 from app.core.database.db_models.request_history import HTTPMethodEnum
 from app.core.processors import AssetParserProcessor
-from app.core.schemas import HistoryListResponse, RequestHistoryResponse, StatsResponse
+from app.core.schemas import HistoryListResponse, RequestHistoryResponse
 from app.web.middleware.request_logging import RequestLoggingMiddleware
 
 # Setup logging before creating the app

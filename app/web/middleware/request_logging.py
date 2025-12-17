@@ -2,6 +2,7 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
+import zoneinfo
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -17,7 +18,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Writes requests history into database"""
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        request_datetime = datetime.now(timezone.utc)
+        # Uze
+        request_datetime = datetime.now(zoneinfo.ZoneInfo('Europe/Moscow')).replace(tzinfo=None)
 
         if request.method not in HTTPMethodEnum:
             # Can't log, skipping

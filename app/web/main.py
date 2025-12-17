@@ -1,11 +1,13 @@
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException, Query
 
 from app.config import get_settings, setup_logging
-from app.core.database import DBSession, engine
+from app.core.database import DBSession, RequestHistoryRepository, engine
+from app.core.database.db_models.request_history import HTTPMethodEnum
 from app.core.processors import AssetParserProcessor
+from app.core.schemas import HistoryListResponse, RequestHistoryResponse, StatsResponse
 from app.web.middleware.request_logging import RequestLoggingMiddleware
 
 # Setup logging before creating the app
@@ -44,3 +46,24 @@ async def parse_stock_data(start_date: date, end_date: date, session: DBSession)
         datetime.combine(end_date, datetime.min.time()),
     )
     return {'message': f'Parsed {start_date} to {end_date}', 'records_processed': count}
+
+
+@app.get('/history', response_model=HistoryListResponse)
+async def get_history(
+    session: DBSession,
+    limit: int = Query(default=100, ge=1),
+    offset: int = Query(default=0, ge=0),
+    endpoint: str | None = None,
+    method: HTTPMethodEnum | None = None,
+):
+    """Get requests history from database"""
+    repo = RequestHistoryRepository(session)
+    items = await repo.get_all(limit=limit, offset=offset, endpoint=endpoint, method=method)
+    total = await repo.count(endpoint=endpoint, method=method)
+
+    return HistoryListResponse(
+        items=[RequestHistoryResponse.model_validate(item) for item in items],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )

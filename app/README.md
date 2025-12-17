@@ -17,7 +17,7 @@ flowchart TB
     end
 
     subgraph Serve["Serve"]
-        WEB["web-interface<br>─────────<br>- Streamlit<br>- Графики<br>- ML-модели"]
+        WEB["web-interface<br>─────────<br>- ML-модели"]
     end
 
     USER(("👤 User"))

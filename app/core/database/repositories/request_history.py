@@ -1,11 +1,8 @@
 import logging
-from sqlalchemy.sql.selectable import Select
-
-
 from datetime import datetime
 from typing import Any, Sequence
 
-from sqlalchemy import delete, func, literal, select
+from sqlalchemy import asc, delete, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database.db_models.request_history import HTTPMethodEnum, RequestHistory
@@ -95,9 +92,9 @@ class RequestHistoryRepository:
         processing_time_stats = await self.session.execute(
             select(
                 func.avg(RequestHistory.processing_time_ms).label('mean'),
-                func.percentile_cont(0.50).within_group(RequestHistory.processing_time_ms).label('p50'),
-                func.percentile_cont(0.95).within_group(RequestHistory.processing_time_ms).label('p95'),
-                func.percentile_cont(0.99).within_group(RequestHistory.processing_time_ms).label('p99'),
+                func.percentile_cont(0.50).within_group(asc(RequestHistory.processing_time_ms)).label('p50'),
+                func.percentile_cont(0.95).within_group(asc(RequestHistory.processing_time_ms)).label('p95'),
+                func.percentile_cont(0.99).within_group(asc(RequestHistory.processing_time_ms)).label('p99'),
             )
         )
         time_stats = processing_time_stats.first()
@@ -112,12 +109,12 @@ class RequestHistoryRepository:
 
         return StatsResponse(
             processing_time=ProcessingTimeStats(
-                mean_ms=float(time_stats.mean) if time_stats and time_stats.mean else None,
-                p50_ms=float(time_stats.p50) if time_stats and time_stats.p50 else None,
-                p95_ms=float(time_stats.p95) if time_stats and time_stats.p95 else None,
-                p99_ms=float(time_stats.p99) if time_stats and time_stats.p99 else None,
+                mean_ms=float(time_stats.mean) if time_stats and time_stats.mean is not None else 0,
+                p50_ms=float(time_stats.p50) if time_stats and time_stats.p50 is not None else 0,
+                p95_ms=float(time_stats.p95) if time_stats and time_stats.p95 is not None else 0,
+                p99_ms=float(time_stats.p99) if time_stats and time_stats.p99 is not None else 0,
             ),
             request_stats=RequestStats(
-                mean_size_bytes=int(size_stats.mean_bytes) if size_stats and size_stats.mean_bytes else None
+                mean_size_bytes=int(size_stats.mean_bytes) if size_stats and size_stats.mean_bytes is not None else 0
             ),
         )

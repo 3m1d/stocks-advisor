@@ -1,8 +1,8 @@
 import json
 import logging
 import time
-from datetime import datetime, timezone
 import zoneinfo
+from datetime import datetime
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -35,7 +35,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         method = HTTPMethodEnum(request.method)
         path = request.url.path
 
-        request_body, request_size_bytes = await self._parse_request_body(request)
+        request_body, query_params, request_size_bytes = await self._parse_request_body(request)
         response, response_time_ms = await self._process_request(request, call_next)
 
         if path == '/history':
@@ -50,6 +50,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             request_path=path,
             request_method=method,
             request_body=request_body,
+            query_params=query_params,
             response_body=response_body,
             processing_time_ms=response_time_ms,
             request_size_bytes=request_size_bytes,
@@ -66,9 +67,15 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         return response, processing_time_ms
 
     @classmethod
-    async def _parse_request_body(cls, request: Request) -> tuple[dict, int]:
+    async def _parse_request_body(cls, request: Request) -> tuple[dict, dict, int]:
         request_body = {}
+        query_params = {}
         request_size_bytes = 0
+
+        # Parse query params
+        if request.url.query:
+            query_params = dict(request.query_params)
+
         try:
             if request.method in ['POST', 'PUT']:
                 body: bytes = await request.body()
@@ -77,7 +84,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 if body:
                     body_utf8 = body.decode('utf-8')
                     try:
-                        request_body = json.loads(body_utf8)
+                        body_data = json.loads(body_utf8)
+                        if isinstance(body_data, dict):
+                            request_body = body_data
+                        else:
+                            request_body = {'body': body_data}
                     except json.JSONDecodeError:
                         request_body = {'body': body_utf8}
         except Exception:
@@ -88,7 +99,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                     'method': request.method,
                 },
             )
-        return request_body, request_size_bytes
+        return request_body, query_params, request_size_bytes
 
     @classmethod
     async def _parse_response_body(
@@ -123,6 +134,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         request_path: str,
         request_method: HTTPMethodEnum,
         request_body: dict,
+        query_params: dict,
         response_body: dict,
         processing_time_ms: int,
         request_size_bytes: int,
@@ -136,8 +148,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                     await repo.create(
                         method=request_method,
                         endpoint=request_path,
-                        request_body=request_body,
-                        response_body=response_body,
+                        request_body=request_body if request_body else None,
+                        query_params=query_params if query_params else None,
+                        response_body=response_body if response_body else None,
                         processing_time_ms=processing_time_ms,
                         request_size_bytes=request_size_bytes,
                         status_code=status_code,

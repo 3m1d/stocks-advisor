@@ -12,23 +12,29 @@ class AssetCandleRepository:
 
     async def bulk_upsert(self, records: list[dict[str, Any]]) -> int:
         """Insert stock price records, skip duplicates."""
-        count = 0
-        for record in records:
-            stmt = (
-                insert(AssetCandle)
-                .values(
-                    ticker=record['ticker'],
-                    begin=record['begin'],
-                    end=record['end'],
-                    open=record['open'],
-                    close=record['close'],
-                    high=record['high'],
-                    low=record['low'],
-                    value=record.get('value'),
-                    volume=record['volume'],
-                )
-                .on_conflict_do_nothing(constraint='unique_ticker_begin')
-            )
-            await self.session.execute(stmt)
-            count += 1
-        return count
+        if not records:
+            return 0
+
+        payload = [
+            {
+                'ticker': r['ticker'],
+                'begin': r['begin'],
+                'end': r['end'],
+                'open': r['open'],
+                'close': r['close'],
+                'high': r['high'],
+                'low': r['low'],
+                'value': r.get('value'),
+                'volume': r['volume'],
+            }
+            for r in records
+        ]
+
+        stmt = (
+            insert(AssetCandle)
+            .values(payload)
+            .on_conflict_do_nothing(constraint='unique_ticker_begin')
+            .returning(AssetCandle.ticker, AssetCandle.begin)
+        )
+        result = await self.session.execute(stmt)
+        return len(result.all())

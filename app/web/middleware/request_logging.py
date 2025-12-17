@@ -1,0 +1,147 @@
+import json
+import logging
+import time
+from datetime import datetime, timezone
+
+from fastapi import Request, Response
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+
+from app.core.database import RequestHistoryRepository
+from app.core.database.db_models.request_history import HTTPMethodEnum
+from app.core.database.session import async_session_factory
+
+logger = logging.getLogger(__name__)
+
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """Writes requests history into database"""
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        request_datetime = datetime.now(timezone.utc)
+
+        if request.method not in HTTPMethodEnum:
+            # Can't log, skipping
+            logger.error(
+                'Unsupported HTTP method',
+                extra={
+                    'endpoint': request.url.path,
+                    'method': request.method,
+                },
+            )
+            return await call_next(request)
+
+        method = HTTPMethodEnum(request.method)
+        path = request.url.path
+
+        request_body, request_size_bytes = await self._parse_request_body(request)
+        response, response_time_ms = await self._process_request(request, call_next)
+        response_body = await self._parse_response_body(request, response)
+
+        status_code = response.status_code
+
+        await self._save_history(
+            request_path=path,
+            request_method=method,
+            request_body=request_body,
+            response_body=response_body,
+            processing_time_ms=response_time_ms,
+            request_size_bytes=request_size_bytes,
+            status_code=status_code,
+            request_datetime=request_datetime,
+        )
+
+        return response
+
+    async def _process_request(self, request: Request, call_next: RequestResponseEndpoint) -> tuple[Response, int]:
+        processing_start = time.perf_counter()
+        response = await call_next(request)
+        processing_time_ms = int(time.perf_counter() - processing_start) * 1000
+        return response, processing_time_ms
+
+    @classmethod
+    async def _parse_request_body(cls, request: Request) -> tuple[dict, int]:
+        request_body = {}
+        request_size_bytes = 0
+        try:
+            if request.method in ['POST', 'PUT']:
+                body: bytes = await request.body()
+                request_size_bytes = len(body)
+
+                if body:
+                    body_utf8 = body.decode('utf-8')
+                    try:
+                        request_body = json.loads(body_utf8)
+                    except json.JSONDecodeError:
+                        request_body = {'body': body_utf8}
+        except Exception:
+            logger.exception(
+                'Failed to parse request body',
+                extra={
+                    'endpoint': request.url.path,
+                    'method': request.method,
+                },
+            )
+        return request_body, request_size_bytes
+
+    @classmethod
+    async def _parse_response_body(cls, request: Request, response: Response):
+        response_body = {}
+        try:
+            if response.body:
+                body: bytes = await request.body()
+
+                if body:
+                    body_utf8 = body.decode('utf-8')
+                    try:
+                        response_body = json.loads(body_utf8)
+                    except json.JSONDecodeError:
+                        response_body = {'body': body_utf8}
+        except Exception:
+            logger.exception(
+                'Failed to parse response body',
+                extra={
+                    'endpoint': request.url.path,
+                    'method': request.method,
+                },
+            )
+        return response_body
+
+    async def _save_history(
+        self,
+        request_path: str,
+        request_method: HTTPMethodEnum,
+        request_body: dict,
+        response_body: dict,
+        processing_time_ms: int,
+        request_size_bytes: int,
+        status_code: int,
+        request_datetime: datetime,
+    ) -> None:
+        try:
+            async with async_session_factory() as session:
+                try:
+                    repo = RequestHistoryRepository(session)
+                    await repo.create(
+                        method=request_method,
+                        endpoint=request_path,
+                        request_body=request_body,
+                        response_body=response_body,
+                        processing_time_ms=processing_time_ms,
+                        request_size_bytes=request_size_bytes,
+                        status_code=status_code,
+                        request_datetime=request_datetime,
+                    )
+                    await session.commit()
+                except Exception:
+                    await session.rollback()
+                    raise
+        except Exception as e:
+            logger.exception(
+                'Failed to save request history to database',
+                extra={
+                    'endpoint': request_path,
+                    'method': request_method,
+                    'status_code': status_code,
+                    'error': str(e),
+                },
+            )

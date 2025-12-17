@@ -1,13 +1,17 @@
+import logging
 from sqlalchemy.sql.selectable import Select
 
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Sequence
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database.db_models.request_history import HTTPMethodEnum, RequestHistory
+
+
+logger = logging.getLogger(__name__)
 
 
 class RequestHistoryRepository:
@@ -36,7 +40,6 @@ class RequestHistoryRepository:
             request_datetime=request_datetime,
         )
         self.session.add(record)
-        await self.session.flush()
         return record
 
     async def get_all(
@@ -45,8 +48,11 @@ class RequestHistoryRepository:
         offset: int = 0,
         endpoint: str | None = None,
         method: HTTPMethodEnum | None = None,
-    ) -> list[RequestHistory]:
-        q = select(RequestHistory).order_by(RequestHistory.created_at.desc())
+    ) -> Sequence[RequestHistory]:
+        q = select(RequestHistory).order_by(
+            RequestHistory.created_at.desc(),
+            RequestHistory.id.desc(),
+        )
 
         if endpoint:
             q = q.where(RequestHistory.endpoint == endpoint)
@@ -54,25 +60,25 @@ class RequestHistoryRepository:
             q = q.where(RequestHistory.method == method)
 
         q = q.limit(limit).offset(offset)
-        result = await self.session.execute(q)
-        return list(result.scalars().all())
+        result = await self.session.scalars(q)
+        return result.all()
 
     async def count(
         self,
         endpoint: str | None = None,
         method: HTTPMethodEnum | None = None,
     ) -> int:
-        stmt = select(func.count(RequestHistory.id))
+        q = select(func.count(RequestHistory.id))
 
         if endpoint:
-            stmt = stmt.where(RequestHistory.endpoint == endpoint)
+            q = q.where(RequestHistory.endpoint == endpoint)
         if method:
-            stmt = stmt.where(RequestHistory.method == method)
+            q = q.where(RequestHistory.method == method)
 
-        result = await self.session.execute(stmt)
-        return result.scalar_one()
+        result = await self.session.scalar(q)
+        return result or 0
 
     async def delete_all(self) -> int:
-        q = delete(RequestHistory)
-        result = await self.session.execute(q)
-        return getattr(result, 'rowcount', 0) or 0
+        stmt = delete(RequestHistory).returning(literal(1))
+        res = await self.session.execute(stmt)
+        return len(res.scalars().all())

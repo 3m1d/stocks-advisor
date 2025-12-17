@@ -12,4 +12,5 @@ __all__ = [
     'AssetCandle',
     'AssetCandleRepository',
     'RequestHistory',
+    'RequestHistoryRepository',
 ]

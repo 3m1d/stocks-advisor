@@ -8,6 +8,7 @@ from app.core.database import DBSession, RequestHistoryRepository, engine
 from app.core.database.db_models.request_history import HTTPMethodEnum
 from app.core.processors import AssetParserProcessor
 from app.core.schemas import HistoryListResponse, RequestHistoryResponse
+from app.core.schemas.request_history import StatsResponse
 from app.web.middleware.request_logging import RequestLoggingMiddleware
 
 # Setup logging before creating the app
@@ -79,3 +80,11 @@ async def delete_history(
     await session.commit()
 
     return {'deleted_count': deleted_count}
+
+
+@app.get('/stats', response_model=StatsResponse)
+async def get_stats(session: DBSession):
+    """Requests stats"""
+    repo = RequestHistoryRepository(session)
+    stats = await repo.get_stats()
+    return StatsResponse(**stats)

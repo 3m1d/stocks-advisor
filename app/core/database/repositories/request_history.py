@@ -86,3 +86,35 @@ class RequestHistoryRepository:
         q2 = select(func.count()).select_from(q)
         count = await self.session.scalar(q2)
         return int(count or 0)
+
+    async def get_stats(self) -> dict[str, Any]:
+        # Averages and quantiles
+        processing_time_stats = await self.session.execute(
+            select(
+                func.avg(RequestHistory.processing_time_ms).label('mean'),
+                func.percentile_cont(0.50).within_group(RequestHistory.processing_time_ms).label('p50'),
+                func.percentile_cont(0.95).within_group(RequestHistory.processing_time_ms).label('p95'),
+                func.percentile_cont(0.99).within_group(RequestHistory.processing_time_ms).label('p99'),
+            )
+        )
+        time_stats = processing_time_stats.first()
+
+        # Request size stats
+        request_size_stats = await self.session.execute(
+            select(
+                func.avg(RequestHistory.request_size_bytes).label('mean_bytes'),
+            ).where(RequestHistory.request_size_bytes.isnot(None))
+        )
+        size_stats = request_size_stats.first()
+
+        return {
+            'processing_time': {
+                'mean_ms': float(time_stats.mean) if time_stats and time_stats.mean else None,
+                'p50_ms': float(time_stats.p50) if time_stats and time_stats.p50 else None,
+                'p95_ms': float(time_stats.p95) if time_stats and time_stats.p95 else None,
+                'p99_ms': float(time_stats.p99) if time_stats and time_stats.p99 else None,
+            },
+            'request_stats': {
+                'mean_size_bytes': int(size_stats.mean_bytes) if size_stats and size_stats.mean_bytes else None,
+            },
+        }

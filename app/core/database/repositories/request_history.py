@@ -79,6 +79,10 @@ class RequestHistoryRepository:
         return result or 0
 
     async def delete_all(self) -> int:
-        stmt = delete(RequestHistory).returning(literal(1))
-        res = await self.session.execute(stmt)
-        return len(res.scalars().all())
+        # Подзапрос, который удаляет записи и возвращает 1 для каждой удаленной записи
+        q = delete(RequestHistory).returning(literal(1)).cte('deleted')
+
+        # Запрос, который считает количество удаленных записей
+        q2 = select(func.count()).select_from(q)
+        count = await self.session.scalar(q2)
+        return int(count or 0)

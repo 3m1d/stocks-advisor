@@ -40,7 +40,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             # Don't log history responses
             response_body = {}
         else:
-            response_body = await self._parse_response_body(request, response)
+            response_body = await self._parse_response_body(path, method, response)
 
         status_code = response.status_code
 
@@ -89,11 +89,16 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         return request_body, request_size_bytes
 
     @classmethod
-    async def _parse_response_body(cls, request: Request, response: Response):
+    async def _parse_response_body(
+        cls,
+        request_path: str,
+        request_method: HTTPMethodEnum,
+        response: Response,
+    ):
         response_body = {}
         try:
             if response.body:
-                body: bytes = await request.body()
+                body: bytes = await response.body
 
                 if body:
                     body_utf8 = body.decode('utf-8')
@@ -105,8 +110,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             logger.exception(
                 'Failed to parse response body',
                 extra={
-                    'endpoint': request.url.path,
-                    'method': request.method,
+                    'endpoint': request_path,
+                    'method': request_method,
                 },
             )
         return response_body

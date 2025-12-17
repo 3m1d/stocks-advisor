@@ -28,7 +28,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Middleware для сохранения истории запросов
+# Middleware for saving requests history into database
 app.add_middleware(RequestLoggingMiddleware)
 
 

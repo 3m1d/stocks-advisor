@@ -15,7 +15,7 @@ class HTTPMethodEnum(StrEnum):
 
 
 class RequestHistory(Base):
-    """История API запросов"""
+    """API requests history"""
 
     __tablename__ = 'request_history'
 

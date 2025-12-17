@@ -13,6 +13,7 @@ class RequestHistoryResponse(BaseModel):
     endpoint: str
     status_code: int
     request_body: dict[str, Any] | None = None
+    query_params: dict[str, Any] | None = None
     response_body: dict[str, Any] | None = None
     request_size_bytes: int | None = None
 

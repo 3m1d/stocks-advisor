@@ -46,7 +46,7 @@ class RequestHistoryRepository:
         endpoint: str | None = None,
         method: HTTPMethodEnum | None = None,
     ) -> list[RequestHistory]:
-        q: Select[Tuple[RequestHistory]] = select(RequestHistory).order_by(RequestHistory.created_at.desc())
+        q = select(RequestHistory).order_by(RequestHistory.created_at.desc())
 
         if endpoint:
             q = q.where(RequestHistory.endpoint == endpoint)
@@ -71,3 +71,8 @@ class RequestHistoryRepository:
 
         result = await self.session.execute(stmt)
         return result.scalar_one()
+
+    async def delete_all(self) -> int:
+        q = delete(RequestHistory)
+        result = await self.session.execute(q)
+        return getattr(result, 'rowcount', 0) or 0

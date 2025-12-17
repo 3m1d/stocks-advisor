@@ -67,3 +67,15 @@ async def get_history(
         limit=limit,
         offset=offset,
     )
+
+
+@app.delete('/history')
+async def delete_history(
+    session: DBSession,
+):
+    """Deletes entire requests history"""
+    repo = RequestHistoryRepository(session)
+    deleted_count = await repo.delete_all()
+    await session.commit()
+
+    return {'deleted_count': deleted_count}

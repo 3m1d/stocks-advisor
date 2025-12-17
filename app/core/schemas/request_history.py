@@ -26,6 +26,10 @@ class HistoryListResponse(BaseModel):
     offset: int
 
 
+class HistoryDeleteResponse(BaseModel):
+    deleted_count: int
+
+
 class ProcessingTimeStats(BaseModel):
     mean_ms: float | None = None
     p50_ms: float | None = None

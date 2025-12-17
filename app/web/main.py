@@ -7,8 +7,13 @@ from app.config import get_settings, setup_logging
 from app.core.database import DBSession, RequestHistoryRepository, engine
 from app.core.database.db_models.request_history import HTTPMethodEnum
 from app.core.processors import AssetParserProcessor
-from app.core.schemas import HistoryListResponse, RequestHistoryResponse
-from app.core.schemas.request_history import StatsResponse
+from app.core.schemas import (
+    HistoryDeleteResponse,
+    HistoryListResponse,
+    ParseResponse,
+    RequestHistoryResponse,
+    StatsResponse,
+)
 from app.web.middleware.request_logging import RequestLoggingMiddleware
 
 # Setup logging before creating the app
@@ -38,15 +43,15 @@ async def root():
     return {'message': 'Hello World'}
 
 
-@app.post('/parse')
-async def parse_stock_data(start_date: date, end_date: date, session: DBSession):
+@app.post('/parse', response_model=ParseResponse)
+async def parse_stock_data(start_date: date, end_date: date, session: DBSession) -> ParseResponse:
     """Parse MOEX stock data for a date range and insert into database."""
     processor = AssetParserProcessor(session)
     count = await processor.parse(
         datetime.combine(start_date, datetime.min.time()),
         datetime.combine(end_date, datetime.min.time()),
     )
-    return {'message': f'Parsed {start_date} to {end_date}', 'records_processed': count}
+    return ParseResponse(message=f'Parsed {start_date} to {end_date}', records_processed=count)
 
 
 @app.get('/history', response_model=HistoryListResponse)
@@ -56,7 +61,7 @@ async def get_history(
     offset: int = Query(default=0, ge=0),
     endpoint: str | None = None,
     method: HTTPMethodEnum | None = None,
-):
+) -> HistoryListResponse:
     """Get requests history from database"""
     repo = RequestHistoryRepository(session)
     items = await repo.get_all(limit=limit, offset=offset, endpoint=endpoint, method=method)
@@ -70,16 +75,16 @@ async def get_history(
     )
 
 
-@app.delete('/history')
+@app.delete('/history', response_model=HistoryDeleteResponse)
 async def delete_history(
     session: DBSession,
-):
+) -> HistoryDeleteResponse:
     """Deletes entire requests history"""
-    repo = RequestHistoryRepository(session)
+    repo: RequestHistoryRepository = RequestHistoryRepository(session)
     deleted_count = await repo.delete_all()
     await session.commit()
 
-    return {'deleted_count': deleted_count}
+    return HistoryDeleteResponse(deleted_count=deleted_count)
 
 
 @app.get('/stats', response_model=StatsResponse)

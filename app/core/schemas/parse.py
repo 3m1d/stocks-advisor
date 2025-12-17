@@ -3,4 +3,5 @@ from pydantic import BaseModel
 
 class ParseResponse(BaseModel):
     message: str
-    records_processed: int
+    parsed_count: int
+    saved_count: int

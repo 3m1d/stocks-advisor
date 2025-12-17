@@ -27,14 +27,14 @@ class HistoryListResponse(BaseModel):
 
 
 class ProcessingTimeStats(BaseModel):
-    mean_ms: float
-    p50_ms: float
-    p95_ms: float
-    p99_ms: float
+    mean_ms: float | None = None
+    p50_ms: float | None = None
+    p95_ms: float | None = None
+    p99_ms: float | None = None
 
 
 class RequestStats(BaseModel):
-    mean_size_bytes: int
+    mean_size_bytes: int | None = None
 
 
 class StatsResponse(BaseModel):

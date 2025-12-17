@@ -83,8 +83,7 @@ async def delete_history(
 
 
 @app.get('/stats', response_model=StatsResponse)
-async def get_stats(session: DBSession):
+async def get_stats(session: DBSession) -> StatsResponse:
     """Requests stats"""
     repo = RequestHistoryRepository(session)
-    stats = await repo.get_stats()
-    return StatsResponse(**stats)
+    return await repo.get_stats()

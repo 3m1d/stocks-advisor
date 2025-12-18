@@ -3,6 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from passlib.context import CryptContext
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import (
     BaseSettings,
@@ -11,9 +12,9 @@ from pydantic_settings import (
     TomlConfigSettingsSource,
 )
 
-from ..core.auth.utils import hash_password
-
 PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+pwd_context = CryptContext(schemes=['bcrypt'])
 
 
 class AppSettings(BaseModel):
@@ -84,6 +85,8 @@ class APISettings(BaseModel):
     reload: bool = False
     workers: int = 1
 
+    V1: str = '/api/v1'
+
 
 class AuthJWTSettings(BaseModel):
     """Настройки для JWT аутентификации"""
@@ -92,6 +95,9 @@ class AuthJWTSettings(BaseModel):
     public_key_path: Path = PROJECT_ROOT / 'app' / 'certs' / 'jwt-public.pem'
 
     algorithm: str = 'RS256'
+    access_token_expire_minutes: int = Field(
+        default=30, description='Access token expiration time in minutes (JWT__ACCESS_TOKEN_EXPIRE_MINUTES env)'
+    )
 
     admin_username: str = Field(default='', description='Admin username (JWT__ADMIN_USERNAME env)')
     admin_password_hash: str = Field(default='', description='Admin password (JWT__ADMIN_PASSWORD_HASH env)')
@@ -99,7 +105,7 @@ class AuthJWTSettings(BaseModel):
     @field_validator('admin_password_hash', mode='before')
     @classmethod
     def hash_admin_password(cls, value: str) -> str:
-        return hash_password(value)
+        return pwd_context.hash(value)
 
 
 class LoggingSettings(BaseModel):

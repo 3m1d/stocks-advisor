@@ -1,7 +1,7 @@
 from typing import Annotated
 
-from fastapi import Body, Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBasic, HTTPBasicCredentials, HTTPBearer
 from jwt import InvalidTokenError
 from pydantic import ValidationError
 
@@ -9,12 +9,14 @@ from app.config.settings import get_settings
 from app.core.auth.utils import decode_jwt, verify_password
 from app.core.schemas.jwt_auth import TokenPayload, UserSchema
 
-CredsDep = Annotated[HTTPAuthorizationCredentials, Depends(HTTPBearer())]
+TokenDep = Annotated[HTTPAuthorizationCredentials, Depends(HTTPBearer())]
+CredsDep = Annotated[HTTPBasicCredentials, Depends(HTTPBasic())]
 
 settings = get_settings()
 
 
-async def authenticate_user(username: str = Body(), password: str = Body()) -> UserSchema:
+async def authenticate_user(credentials: CredsDep) -> UserSchema:
+    username, password = credentials.username, credentials.password
     is_admin = username == settings.jwt.admin_username and verify_password(password, settings.jwt.admin_password_hash)
     user = UserSchema(
         username=username,
@@ -24,7 +26,7 @@ async def authenticate_user(username: str = Body(), password: str = Body()) -> U
     return user
 
 
-async def get_token_payload(credentials: CredsDep) -> TokenPayload:
+async def get_token_payload(credentials: TokenDep) -> TokenPayload:
     token = credentials.credentials
     try:
         payload = decode_jwt(token=token)

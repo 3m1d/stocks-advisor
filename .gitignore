@@ -219,3 +219,7 @@ notebooks/parsing/testing/data
 # Datasets
 *.csv
 
+# OpenSSL keys
+*.pem
+
+

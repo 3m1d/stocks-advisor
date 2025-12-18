@@ -1,5 +1,4 @@
 import logging
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -11,6 +10,8 @@ from pydantic_settings import (
     SettingsConfigDict,
     TomlConfigSettingsSource,
 )
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 class AppSettings(BaseModel):
@@ -82,6 +83,18 @@ class APISettings(BaseModel):
     workers: int = 1
 
 
+class AuthJWTSettings(BaseModel):
+    """Настройки для JWT аутентификации"""
+
+    private_key_path: Path = PROJECT_ROOT / 'app' / 'certs' / 'jwt_private.pem'
+    public_key_path: Path = PROJECT_ROOT / 'app' / 'certs' / 'jwt_public.pem'
+
+    algorithm: str = 'RS256'
+
+    admin_username: str = Field(default='', description='Admin username (JWT__ADMIN_USERNAME env)')
+    admin_password: str = Field(default='', description='Admin password (JWT__ADMIN_PASSWORD env)')
+
+
 class LoggingSettings(BaseModel):
     """Настройки логгера"""
 
@@ -102,6 +115,7 @@ class Settings(BaseSettings):
     moex: MOEXSettings = Field(default_factory=MOEXSettings)
     api: APISettings = Field(default_factory=APISettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
+    jwt: AuthJWTSettings = Field(default_factory=AuthJWTSettings)
 
     model_config = SettingsConfigDict(
         env_file='.env',
@@ -121,8 +135,7 @@ class Settings(BaseSettings):
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         # Find config.toml in project root
-        project_root = Path(__file__).parent.parent.parent
-        config_file = project_root / 'config.toml'
+        config_file = PROJECT_ROOT / 'config.toml'
 
         sources = [
             init_settings,  # Explicit init values
@@ -137,7 +150,7 @@ class Settings(BaseSettings):
 
 
 @lru_cache
-def get_settings():
+def get_settings() -> Settings:
     return Settings()
 
 

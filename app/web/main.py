@@ -83,9 +83,6 @@ async def delete_history(
     x_api_token: str = Header(..., alias='X-API-Token', description='API token'),
 ) -> HistoryDeleteResponse:
     """Deletes entire requests history"""
-    if x_api_token != settings.security.delete_history_token:
-        raise HTTPException(status_code=403, detail='Invalid token')
-
     repo: RequestHistoryRepository = RequestHistoryRepository(session)
     deleted_count = await repo.delete_all()
     await session.commit()

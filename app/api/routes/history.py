@@ -38,3 +38,10 @@ async def delete_history(
     await session.commit()
 
     return HistoryDeleteResponse(deleted_count=deleted_count)
+
+
+@router.get('/stats', response_model=StatsResponse)
+async def get_stats(session: DBSession) -> StatsResponse:
+    """Requests stats"""
+    repo = RequestHistoryRepository(session)
+    return await repo.get_stats()

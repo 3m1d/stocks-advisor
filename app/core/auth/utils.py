@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta, timezone
 
-import bcrypt
 import jwt
+from pwdlib import PasswordHash
 
 from app.config.settings import get_settings
 
 settings = get_settings()
+
+password_hash = PasswordHash.recommended()
 
 
 def encode_jwt(
@@ -47,12 +49,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         bool: If password is verified
     """
-    try:
-        password_bytes = plain_password.encode('utf-8')
-        hashed_bytes = hashed_password.encode('utf-8')
-        return bcrypt.checkpw(password_bytes, hashed_bytes)
-    except Exception:
-        return False
+    return password_hash.verify(plain_password, hashed_password)
 
 
 def hash_password(password: str) -> str:
@@ -64,6 +61,5 @@ def hash_password(password: str) -> str:
     Returns:
         str: Hashed password
     """
-    password_bytes = password.encode('utf-8')
-    hashed = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
-    return hashed.decode('utf-8')
+
+    return password_hash.hash(password)

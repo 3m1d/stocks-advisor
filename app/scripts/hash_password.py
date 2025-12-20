@@ -1,5 +1,7 @@
-import bcrypt
+from pwdlib import PasswordHash
 import click
+
+password_hash = PasswordHash.recommended()
 
 
 @click.command()
@@ -10,7 +12,7 @@ def main(password: str) -> None:
         click.echo("Error: Password can't be empty", err=True)
         raise click.Abort()
 
-    hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    hashed = password_hash.hash(password)
     click.echo(hashed)
 
 

@@ -3,8 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-import bcrypt
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -99,19 +98,6 @@ class AuthJWTSettings(BaseModel):
 
     admin_username: str = Field(default='', description='Admin username (JWT__ADMIN_USERNAME env)')
     admin_password_hash: str = Field(default='', description='Admin password (JWT__ADMIN_PASSWORD_HASH env)')
-
-    @field_validator('admin_password_hash', mode='before')
-    @classmethod
-    def hash_admin_password(cls, value: str) -> str:
-        if not value:
-            return value
-        # Check if value is already a bcrypt hash (starts with $2a$, $2b$, $2x$, or $2y$)
-        if value.startswith(('$2a$', '$2b$', '$2x$', '$2y$')):
-            return value
-        # Hash the plain password using bcrypt
-        password_bytes = value.encode('utf-8')
-        hashed = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
-        return hashed.decode('utf-8')
 
 
 class LoggingSettings(BaseModel):

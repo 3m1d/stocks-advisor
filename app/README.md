@@ -45,9 +45,14 @@ flowchart TB
 
 - **`alembic/`** - миграции в БД
 
+- **`api/`** - API-ручки
+
+- **`certs/`** - сертификаты
+
 - **`config/`** — настройки приложения
 
 - **`core/`** — основная бизнес-логика приложения:
+  - `auth/` - аутентификация
   - `clients/` — клиенты для внешних API
   - `database/` — работа с базой данных (БД)
     - `db_models/` - SQLAlchemy модели таблиц БД. Из них alembic генерирует миграции в БД
@@ -55,11 +60,11 @@ flowchart TB
   - `processors/` - обработчики данных
   - `schemas/` - Pydantic схемы данных
 
-- **`daemons/`** — демоны
+- **`daemons/`** — демоны (фоновые процессы)
 
 - **`docs/`** — документация проекта
 
-- **`web/`** — веб-приложение на FastAPI
+- **`scripts/`** — документация проекта
 
 ## Разработка
 
@@ -68,7 +73,7 @@ flowchart TB
 1. Установить `uv`
 2. Создать в корне репозитория файл `.env` с содержимым из [.env.example](../.env.example).
 
-По умолчанию, у админского аккаунта login=admin, password=admin. Можно поменять на свой.
+По умолчанию, у админского аккаунта login=admin, password=admin. Можно поменять на другой.
 
 Чтобы получить хэш пароля, запустите: `make hash-password password=<password>`
 
@@ -78,8 +83,7 @@ flowchart TB
 
 ```bash
 uv run fastapi dev app/web/main.py
-# Или так:
-# make fastapi-run-dev
+# или make fastapi-run-dev
 ```
 
 ### Как подключиться к production БД?

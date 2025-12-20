@@ -28,10 +28,10 @@ def encode_jwt(
     return token
 
 
-def decode_jwt(
-    token: str, public_key: str = settings.jwt.public_key_path.read_text(), algorithm: str = settings.jwt.algorithm
-) -> dict:
+def decode_jwt(token: str, public_key: str | None = None, algorithm: str | None = None) -> dict:
     """JWT decoding function"""
+    public_key = public_key if public_key else settings.jwt.public_key_path.read_text()
+    algorithm = algorithm if algorithm else settings.jwt.algorithm
     payload = jwt.decode(token, public_key, algorithms=[algorithm])
     return payload
 

@@ -18,6 +18,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Writes requests history into database"""
 
     IGNORED_PATH_PREFIXES = (
+        '/api/v1/jwt',
         '/api/v1/history',
         '/openapi.json',
         '/docs',

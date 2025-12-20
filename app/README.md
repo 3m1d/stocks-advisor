@@ -127,5 +127,5 @@ uv run alembic -c app/alembic.ini revision --autogenerate -m <название_�
 
 ```bash
 uv run alembic upgrade head
-# или alembic-run-migration
+# или make alembic-run-migration
 ```

@@ -12,11 +12,14 @@ pwd_context = CryptContext(schemes=['bcrypt'])
 
 def encode_jwt(
     payload: dict,
-    private_key: str = settings.jwt.private_key_path.read_text(),
-    algorithm: str = settings.jwt.algorithm,
-    expire_minutes: int = settings.jwt.access_token_expire_minutes,
+    private_key: str | None =  None,
+    algorithm: str | None = None,
+    expire_minutes: int | None = None,
 ) -> str:
     """JWT encoding function"""
+    private_key = private_key if private_key is not None else settings.jwt.private_key_path.read_text()
+    algorithm = algorithm if algorithm is not None else settings.jwt.algorithm
+    expire_minutes = expire_minutes if expire_minutes is not None else settings.jwt.access_token_expire_minutes
     to_encode = payload.copy()
 
     # Add fields `exp` and `iat` to payload

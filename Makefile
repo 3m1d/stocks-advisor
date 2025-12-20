@@ -25,4 +25,4 @@ alembic-run-migration:
 ###############
 
 fastapi-run-dev:
-	uv run fastapi dev app/web/main.py
+	uv run fastapi dev app/main.py

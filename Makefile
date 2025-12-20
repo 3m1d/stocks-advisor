@@ -1,4 +1,4 @@
-.PHONY: alembic-generate-migration alembic-run-migration
+.PHONY: alembic-generate-migration alembic-run-migration hash-password
 
 ALEMBIC_CONFIG ?= app/alembic.ini
 export ALEMBIC_CONFIG
@@ -26,3 +26,14 @@ alembic-run-migration:
 
 fastapi-run-dev:
 	uv run fastapi dev app/main.py
+
+###############
+# Utils
+###############
+
+hash-password:
+	@if [ -z "$(password)" ]; then \
+		echo "Error: password is required. Usage: make hash-password password=<your_password>"; \
+		exit 1; \
+	fi
+	uv run app/scripts/hash_password.py "$(password)"

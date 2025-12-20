@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
+from app.api.deps import require_admin
 from app.core.database import DBSession, RequestHistoryRepository
 from app.core.database.db_models.request_history import HTTPMethodEnum
 from app.core.schemas import HistoryDeleteResponse, HistoryListResponse, RequestHistoryResponse, StatsResponse
+from app.core.schemas.jwt_auth import TokenPayload, UserSchema
 
 router = APIRouter(prefix='/history', tags=['History'])
 
@@ -29,9 +31,7 @@ async def get_history(
 
 
 @router.delete('/', response_model=HistoryDeleteResponse)
-async def delete_history(
-    session: DBSession,
-) -> HistoryDeleteResponse:
+async def delete_history(session: DBSession, _: TokenPayload = Depends(require_admin)) -> HistoryDeleteResponse:
     """Deletes an entire requests history"""
     repo: RequestHistoryRepository = RequestHistoryRepository(session)
     deleted_count = await repo.delete_all()

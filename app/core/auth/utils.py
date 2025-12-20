@@ -1,18 +1,16 @@
 from datetime import datetime, timedelta, timezone
 
+import bcrypt
 import jwt
-from passlib.context import CryptContext
 
 from app.config.settings import get_settings
 
 settings = get_settings()
 
-pwd_context = CryptContext(schemes=['bcrypt'])
-
 
 def encode_jwt(
     payload: dict,
-    private_key: str | None =  None,
+    private_key: str | None = None,
     algorithm: str | None = None,
     expire_minutes: int | None = None,
 ) -> str:
@@ -49,7 +47,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         bool: If password is verified
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        password_bytes = plain_password.encode('utf-8')
+        hashed_bytes = hashed_password.encode('utf-8')
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
+    except Exception:
+        return False
 
 
 def hash_password(password: str) -> str:
@@ -61,4 +64,6 @@ def hash_password(password: str) -> str:
     Returns:
         str: Hashed password
     """
-    return pwd_context.hash(password)
+    password_bytes = password.encode('utf-8')
+    hashed = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
+    return hashed.decode('utf-8')

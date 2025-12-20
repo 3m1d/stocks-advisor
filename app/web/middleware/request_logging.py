@@ -17,9 +17,8 @@ logger = logging.getLogger(__name__)
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Writes requests history into database"""
 
-    IGNORED_PATHS = (
-        '/history',
-        '/stats',
+    IGNORED_PATH_PREFIXES = (
+        '/api/v1/history',
         '/openapi.json',
         '/docs',
         '/redoc',
@@ -42,8 +41,10 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         method = HTTPMethodEnum(request.method)
         path = request.url.path
 
-        if path in self.IGNORED_PATHS:
-            return await call_next(request)
+        # Don't log ignored prefixes
+        for prefix in self.IGNORED_PATH_PREFIXES:
+            if path.startswith(prefix):
+                return await call_next(request)
 
         request_body, query_params, request_size_bytes = await self._parse_request_body(request)
         response, response_time_ms = await self._process_request(request, call_next)

@@ -3,7 +3,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pwdlib import PasswordHash
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -12,6 +13,8 @@ from pydantic_settings import (
 )
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+password_hash = PasswordHash.recommended()
 
 
 class AppSettings(BaseModel):
@@ -97,7 +100,19 @@ class AuthJWTSettings(BaseModel):
     )
 
     admin_username: str = Field(default='', description='Admin username (JWT__ADMIN_USERNAME env)')
-    admin_password_hash: str = Field(default='', description='Admin password (JWT__ADMIN_PASSWORD_HASH env)')
+    admin_password_hash: str = Field(
+        default='', description='Admin password hash (argon2) (JWT__ADMIN_PASSWORD_HASH env)'
+    )
+
+    @field_validator('admin_password_hash', mode='before')
+    @classmethod
+    def validate_admin_password_hash(cls, value: str) -> str:
+        if not password_hash.current_hasher.identify(value or ''):
+            raise ValueError(
+                f'Invalid Argon2 hash format. Expected a hash starting with $argon2, '
+                f'but got: {value[:50]}{"..." if len(value) > 50 else ""}'
+            )
+        return value
 
 
 class LoggingSettings(BaseModel):

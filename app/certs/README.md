@@ -9,5 +9,5 @@ openssl genrsa -out jwt-private.pem 2048
 2. Генерируем публичный ключ на основе приватного:
 ```bash
 # Выделяем публичный ключ из пары для сертификата
-openssl rsa -in jwt-private.pem -outform PEM -pubout jwt-public.pem
+openssl rsa -in jwt-private.pem -outform PEM -pubout -out jwt-public.pem
 ```

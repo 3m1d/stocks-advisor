@@ -66,42 +66,35 @@ flowchart TB
 ### Начало работы
 
 1. Установить `uv`
-2. Запустить `uv sync`
-3. Создать в корне репозитория файл `.env` с содержимым:
+2. Создать в корне репозитория файл `.env` с содержимым из [.env.example](../.env.example).
 
-```env
-DATABASE__HOST=<postgresql IP>
-DATABASE__PORT=5432
-DATABASE__NAME=stocks_advisor_db
-DATABASE__USER=<user>
-DATABASE__PASSWORD=<password>
-```
+По умолчанию, у админского аккаунта login=admin, password=admin. Можно поменять на свой.
 
-Поля `DATABASE__HOST`, `DATABASE__USER` и `DATABASE__PASSWORD` нужно заполнить самостоятельно.
+Чтобы получить хэш пароля, запустите: `make hash-password password=<password>`
 
-4. Проверить, что приложение стартует:
+3. Сгенерировать ключи: `make generate-jwt-certs`
+4. Если БД пустая, нужно применить миграции: `make alembic-run-migration`
+5. Запустить приложение:
 
 ```bash
 uv run fastapi dev app/web/main.py
+# Или так:
+# make fastapi-run-dev
 ```
 
-### Как подключиться к БД?
+### Как подключиться к production БД?
 
-#### С удаленной VM
+#### На VM
 
 Если код запускается в VM с доступом к БД, то в `.env` нужно указать IP адрес сервера с БД:
 
 ```env
 DATABASE__HOST=<postgresql IP>
-DATABASE__PORT=5432
-DATABASE__NAME=stocks_advisor_db
-DATABASE__USER=<user>
-DATABASE__PASSWORD=<password>
 ```
 
 #### Локально
 
-Если код запускается локально на ноутбуке, то нужно сначала прокинуть порт БД через SSH:
+Если код запускается на другом устройстве (ноутбук, компьютер), то нужно сначала прокинуть порт БД через SSH:
 
 ```bash
 ssh -L 5432:<postgresql IP>:5432 <user>@<server IP> -p <ssh port>
@@ -111,10 +104,6 @@ ssh -L 5432:<postgresql IP>:5432 <user>@<server IP> -p <ssh port>
 
 ```env
 DATABASE__HOST=localhost
-DATABASE__PORT=5432
-DATABASE__NAME=stocks_advisor_db
-DATABASE__USER=<user>
-DATABASE__PASSWORD=<password>
 ```
 
 ### Как добавить/изменить таблицу БД?

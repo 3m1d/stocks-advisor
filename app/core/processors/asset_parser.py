@@ -17,7 +17,7 @@ class AssetParserProcessor:
         self.client = MOEXClient()
         self.repo = AssetCandleRepository(session)
 
-    async def parse(self, start_dt: datetime, end_dt: datetime) -> int:
+    async def parse(self, start_dt: datetime, end_dt: datetime) -> tuple[int, int]:
         """Parse MOEX stock data for a datetime range and insert into database."""
         tickers = list(Ticker)
 
@@ -33,16 +33,20 @@ class AssetParserProcessor:
             interval=Interval.HOUR_1,
         )
 
-        total_count = 0
+        saved_count = 0
+        parsed_count = 0
         for ticker, df in data.items():
             if df.empty:
                 logger.debug(f'No data for {ticker}')
                 continue
 
             records = df.to_dict('records')
+            parsed_count += len(records)
+
             count = await self.repo.bulk_upsert(records)
-            total_count += count
+            saved_count += count
+
             logger.info(f'Processed {count} records for {ticker}')
 
-        logger.info(f'Total records processed: {total_count}')
-        return total_count
+        logger.info(f'Records parsed: {parsed_count}; Records saved: {saved_count}')
+        return parsed_count, saved_count

@@ -1,7 +1,3 @@
-# Application Configuration
-# Secrets should be stored in environment variables (see .env.example)
-# Environment variables will override values in this file
-
 [app]
 name = "stocks-advisor"
 version = "0.1.0"
@@ -9,20 +5,17 @@ debug = false
 log_level = "INFO"
 
 [moex]
-# MOEX API client settings
 base_url = "https://iss.moex.com/iss"
 timeout_connect = 30
 timeout_sock_read = 60
 timeout_total = 120
 
 [api]
-# FastAPI settings
 host = "0.0.0.0"
 port = 8000
 reload = false
 workers = 1
 
 [logging]
-# Logging configuration
 format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 date_format = "%Y-%m-%d %H:%M:%S"

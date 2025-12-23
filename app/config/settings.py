@@ -1,11 +1,11 @@
 import logging
-from functools import lru_cache
 import os
+from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
 from pwdlib import PasswordHash
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -28,37 +28,12 @@ class AppSettings(BaseModel):
 class DatabaseSettings(BaseModel):
     """Настройки PostgreSQL"""
 
-    host: str = Field(default='', description='Host (DATABASE__HOST env)')
-    port: str = Field(default='', description='Port (DATABASE__PORT env)')
-    name: str = Field(default='', description='Database (DATABASE__NAME env)')
-    user: str = Field(default='', description='User (DATABASE__USER env)')
-    password: str = Field(default='', description='Password (DATABASE__PASSWORD env)')
+    host: str = Field(..., description='Host (DATABASE__HOST env)')
+    port: str = Field(..., description='Port (DATABASE__PORT env)')
+    name: str = Field(..., description='Database (DATABASE__NAME env)')
+    user: str = Field(..., description='User (DATABASE__USER env)')
+    password: str = Field(..., description='Password (DATABASE__PASSWORD env)')
     ssl_mode: str = Field(default='prefer', description='SSL mode for PostgreSQL connection')
-
-    @model_validator(mode='after')
-    def validate_required_fields(self) -> 'DatabaseSettings':
-        required_fields = {
-            'host': self.host,
-            'port': self.port,
-            'name': self.name,
-            'user': self.user,
-            'password': self.password,
-        }
-        missing = [field for field, value in required_fields.items() if not value]
-        if missing:
-            env_vars = {
-                'host': 'DATABASE__HOST',
-                'port': 'DATABASE__PORT',
-                'name': 'DATABASE__NAME',
-                'user': 'DATABASE__USER',
-                'password': 'DATABASE__PASSWORD',
-            }
-            missing_env_vars = [env_vars[field] for field in missing]
-            raise ValueError(
-                f'Missing required database configuration: {", ".join(missing)}. '
-                f'Please set the following environment variables: {", ".join(missing_env_vars)}'
-            )
-        return self
 
     @property
     def url_async(self) -> str:
@@ -100,15 +75,13 @@ class AuthJWTSettings(BaseModel):
         default=30, description='Access token expiration time in minutes (JWT__ACCESS_TOKEN_EXPIRE_MINUTES env)'
     )
 
-    admin_username: str = Field(default='', description='Admin username (JWT__ADMIN_USERNAME env)')
-    admin_password_hash: str = Field(
-        default='', description='Admin password hash (argon2) (JWT__ADMIN_PASSWORD_HASH env)'
-    )
+    admin_username: str = Field(..., description='Admin username (JWT__ADMIN_USERNAME env)')
+    admin_password_hash: str = Field(..., description='Admin password hash (argon2) (JWT__ADMIN_PASSWORD_HASH env)')
 
     @field_validator('admin_password_hash', mode='before')
     @classmethod
     def validate_admin_password_hash(cls, value: str) -> str:
-        if not password_hash.current_hasher.identify(value or ''):
+        if not password_hash.current_hasher.identify(value):
             raise ValueError(
                 f'Invalid Argon2 hash format. Expected a hash starting with $argon2, '
                 f'but got: {value[:50]}{"..." if len(value) > 50 else ""}'

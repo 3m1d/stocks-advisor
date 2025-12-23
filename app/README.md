@@ -17,7 +17,7 @@ flowchart TB
     end
 
     subgraph Serve["Serve"]
-        WEB["web-interface<br>─────────<br>- Streamlit<br>- Графики<br>- ML-модели"]
+        WEB["web-interface<br>─────────<br>- ML-модели"]
     end
 
     USER(("👤 User"))
@@ -45,9 +45,14 @@ flowchart TB
 
 - **`alembic/`** - миграции в БД
 
+- **`api/`** - API-ручки
+
+- **`certs/`** - сертификаты
+
 - **`config/`** — настройки приложения
 
 - **`core/`** — основная бизнес-логика приложения:
+  - `auth/` - аутентификация
   - `clients/` — клиенты для внешних API
   - `database/` — работа с базой данных (БД)
     - `db_models/` - SQLAlchemy модели таблиц БД. Из них alembic генерирует миграции в БД
@@ -55,53 +60,45 @@ flowchart TB
   - `processors/` - обработчики данных
   - `schemas/` - Pydantic схемы данных
 
-- **`daemons/`** — демоны
+- **`daemons/`** — демоны (фоновые процессы)
 
 - **`docs/`** — документация проекта
 
-- **`web/`** — веб-приложение на FastAPI
+- **`scripts/`** — CLI-скрипты
 
 ## Разработка
 
 ### Начало работы
 
 1. Установить `uv`
-2. Запустить `uv sync`
-3. Создать в корне репозитория файл `.env` с содержимым:
+2. Создать в корне репозитория файл `.env` с содержимым из [.env.example](../.env.example).
 
-```env
-DATABASE__HOST=<postgresql IP>
-DATABASE__PORT=5432
-DATABASE__NAME=stocks_advisor_db
-DATABASE__USER=<user>
-DATABASE__PASSWORD=<password>
-```
+По умолчанию, у админского аккаунта login=admin, password=admin. Можно поменять на другой.
 
-Поля `DATABASE__HOST`, `DATABASE__USER` и `DATABASE__PASSWORD` нужно заполнить самостоятельно.
+Чтобы получить хэш пароля, запустите: `make hash-password password=<password>`
 
-4. Проверить, что приложение стартует:
+3. Сгенерировать ключи: `make generate-jwt-certs`
+4. Если БД пустая, нужно применить миграции: `make alembic-run-migration`
+5. Запустить приложение:
 
 ```bash
 uv run fastapi dev app/web/main.py
+# или make fastapi-run-dev
 ```
 
-### Как подключиться к БД?
+### Как подключиться к production БД?
 
-#### С удаленной VM
+#### На VM
 
 Если код запускается в VM с доступом к БД, то в `.env` нужно указать IP адрес сервера с БД:
 
 ```env
 DATABASE__HOST=<postgresql IP>
-DATABASE__PORT=5432
-DATABASE__NAME=stocks_advisor_db
-DATABASE__USER=<user>
-DATABASE__PASSWORD=<password>
 ```
 
 #### Локально
 
-Если код запускается локально на ноутбуке, то нужно сначала прокинуть порт БД через SSH:
+Если код запускается на другом устройстве (ноутбук, компьютер), то нужно сначала прокинуть порт БД через SSH:
 
 ```bash
 ssh -L 5432:<postgresql IP>:5432 <user>@<server IP> -p <ssh port>
@@ -111,10 +108,6 @@ ssh -L 5432:<postgresql IP>:5432 <user>@<server IP> -p <ssh port>
 
 ```env
 DATABASE__HOST=localhost
-DATABASE__PORT=5432
-DATABASE__NAME=stocks_advisor_db
-DATABASE__USER=<user>
-DATABASE__PASSWORD=<password>
 ```
 
 ### Как добавить/изменить таблицу БД?
@@ -134,5 +127,5 @@ uv run alembic -c app/alembic.ini revision --autogenerate -m <название_�
 
 ```bash
 uv run alembic upgrade head
-# или alembic-run-migration
+# или make alembic-run-migration
 ```

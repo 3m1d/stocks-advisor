@@ -68,15 +68,16 @@ flowchart TB
 
 ## Разработка
 
-### Начало работы
+### Локальная разработка
+
+1. Установить `uv`
+2. Выполнить `make init`
+3. Запустить приложение: `make fastapi-run-dev-local`
+
+### Разработка с удаленной БД
 
 1. Установить `uv`
 2. Создать в корне репозитория файл `.env` с содержимым из [.env.example](../.env.example).
-
-По умолчанию, у админского аккаунта login=admin, password=admin. Можно поменять на другой.
-
-Чтобы получить хэш пароля, запустите: `make hash-password password=<password>`
-
 3. Сгенерировать ключи: `make generate-jwt-certs`
 4. Если БД пустая, нужно применить миграции: `make alembic-run-migration`
 5. Запустить приложение:
@@ -85,6 +86,18 @@ flowchart TB
 uv run fastapi dev app/web/main.py
 # или make fastapi-run-dev
 ```
+
+### Авторизация
+
+Для некоторых API-ручек нужна авторизация. Для этого нужно:
+
+1. Отправить POST запрос на `/api/v1/jwt/login` с username и password в заголовке `Authorization: Basic <username:password в base64>`.
+2. Получить JWT токен в ответе.
+3. В заголовке запроса добавить `Authorization: Bearer <JWT токен>`.
+
+По умолчанию, у админского аккаунта `username=admin`, `password=admin`. Можно поменять на другой, заменив в файле `.env` значения `JWT__ADMIN_USERNAME` и `JWT__ADMIN_PASSWORD_HASH`.
+
+Чтобы получить хэш пароля, запустите: `make hash-password password=<password>`
 
 ### Как подключиться к production БД?
 
@@ -101,13 +114,14 @@ DATABASE__HOST=<postgresql IP>
 Если код запускается на другом устройстве (ноутбук, компьютер), то нужно сначала прокинуть порт БД через SSH:
 
 ```bash
-ssh -L 5432:<postgresql IP>:5432 <user>@<server IP> -p <ssh port>
+ssh -L 54321:<postgresql IP>:5432 <user>@<server IP> -p <ssh port>
 ```
 
 И указать в `.env` адрес `localhost`:
 
 ```env
 DATABASE__HOST=localhost
+DATABASE__PORT=54321
 ```
 
 ### Как добавить/изменить таблицу БД?
@@ -117,8 +131,10 @@ DATABASE__HOST=localhost
 1. Запустить создание миграции (в директории `app/alembic/versions`):
 
 ```bash
-uv run alembic -c app/alembic.ini revision --autogenerate -m <название_миграции>
-# или make alembic-generate-migration name=<название_миграции>
+# Для локальной БД:
+make alembic-generate-migration-local name=<название_миграции>
+# Для удаленной БД:
+make alembic-generate-migration name=<название_миграции>
 ```
 
 2. Проверить созданную миграцию. Нужно соблюдать осторожность с миграциями, которые изменяют/удаляют поля таблиц, иначе есть риск потери данных в БД.
@@ -126,6 +142,14 @@ uv run alembic -c app/alembic.ini revision --autogenerate -m <название_�
 3. Запустить выполнение миграции в БД:
 
 ```bash
-uv run alembic upgrade head
-# или make alembic-run-migration
+# Для локальной БД:
+make alembic-run-migration-local
+# Для удаленной БД:
+make alembic-run-migration
 ```
+
+### Как пользоваться приложением?
+
+Сначала нужно спарсить данные из MOEX. Это можно сделать, выполнив команду: `make parse-data-from-moex-local`.
+
+После этого можно пользоваться prediction API: `POST /api/v1/predict/forward`.

@@ -5,7 +5,7 @@ export ALEMBIC_CONFIG
 # Init
 ###############
 
-.PHONY: init-local-db
+.PHONY: init uv-sync init-local-db
 
 # Инициализация проекта:
 # - Установка зависимостей

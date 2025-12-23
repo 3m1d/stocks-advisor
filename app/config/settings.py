@@ -1,5 +1,6 @@
 import logging
 from functools import lru_cache
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -126,7 +127,7 @@ class Settings(BaseSettings):
     """Настройки приложения.
 
     Откуда берем настройки:
-    - Основные настройки приложения: config.toml
+    - Основные настройки приложения: название файла берем из APP_CONFIG. По умолчанию - config.toml
     - Секреты: .env файл или переменные окружения
     """
 
@@ -154,8 +155,9 @@ class Settings(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        # Find config.toml in project root
-        config_file = PROJECT_ROOT / 'config.toml'
+        # Find config in project root
+        config_file = os.getenv('APP_CONFIG', 'config.toml')
+        config_file = PROJECT_ROOT / config_file
 
         sources = [
             init_settings,  # Explicit init values

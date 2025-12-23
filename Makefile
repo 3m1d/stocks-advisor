@@ -2,6 +2,26 @@ ALEMBIC_CONFIG ?= app/alembic.ini
 export ALEMBIC_CONFIG
 
 ###############
+# Init
+###############
+
+.PHONY: init-local-db
+
+# Инициализация проекта:
+# - Установка зависимостей
+# - Генерация сертификатов для JWT токенов
+# - Запуск docker контейнеров и применение миграций для локальной БД
+init: uv-sync generate-jwt-certs init-local-db
+
+# Установка зависимостей
+uv-sync:
+	uv sync
+
+# Запуск и применение миграций для локальной БД
+init-local-db:
+	make docker-up && sleep 10 && make alembic-run-migration
+
+###############
 # Alembic
 ###############
 
@@ -37,11 +57,13 @@ alembic-run-migration-local:
 
 .PHONY: fastapi-run-dev fastapi-run-dev-local
 
-# Запустить сервер для разработки. Конфиг базы берется из config.toml
+# Запустить сервер для разработки.
+# Конфиг БД берется из .env файла или переменных окружения.
 fastapi-run-dev:
 	APP_CONFIG=config.toml uv run fastapi dev app/main.py
 
-# Сервер для разработки с локальной БД (в docker контейнере, см. docker-compose.yml)
+# Сервер для разработки с локальной БД (в docker контейнере, см. docker-compose.yml).
+# Конфиг БД берется из config_local.toml файла.
 fastapi-run-dev-local:
 	APP_CONFIG=config_local.toml uv run fastapi dev app/main.py
 
@@ -77,7 +99,6 @@ hash-password:
 		exit 1; \
 	fi
 	uv run app/scripts/hash_password.py "$(password)"
-
 
 # Сгенерировать сертификаты для подписи JWT токенов
 generate-jwt-certs:

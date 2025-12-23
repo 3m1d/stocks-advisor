@@ -155,18 +155,17 @@ class Settings(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        # Find config in project root
         config_file = os.getenv('APP_CONFIG', 'config.toml')
         config_file = PROJECT_ROOT / config_file
 
+        toml_config = TomlConfigSettingsSource(settings_cls, toml_file=str(config_file))
+        # Toml has higher priority than env variables
         sources = [
-            init_settings,  # Explicit init values
-            env_settings,  # Environment variables
-            dotenv_settings,  # .env file
+            init_settings,
+            toml_config,
+            dotenv_settings,
+            env_settings,
         ]
-
-        if config_file.exists():
-            sources.append(TomlConfigSettingsSource(settings_cls, toml_file=str(config_file)))
 
         return tuple(sources)
 

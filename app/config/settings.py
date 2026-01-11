@@ -96,6 +96,13 @@ class LoggingSettings(BaseModel):
     date_format: str = '%Y-%m-%d %H:%M:%S'
 
 
+class HistorySettings(BaseModel):
+    """Настройки истории запросов"""
+
+    ignored_path_prefixes: list[str]
+    max_response_size: int = 10_000
+
+
 class Settings(BaseSettings):
     """Настройки приложения.
 
@@ -110,6 +117,7 @@ class Settings(BaseSettings):
     api: APISettings = Field(default_factory=APISettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     jwt: AuthJWTSettings = Field(default_factory=AuthJWTSettings)
+    history: HistorySettings = Field(default_factory=HistorySettings)
 
     model_config = SettingsConfigDict(
         env_file='.env',

@@ -10,12 +10,6 @@ from app.core.database.repositories.asset_candle import AssetCandleRepository
 from app.core.processors.feature_generator import FeatureGenerator
 from app.core.processors.model_predictor import ModelPredictor
 
-st.set_page_config(
-    page_title='Советник по акциям',
-    layout='wide',
-    initial_sidebar_state='expanded',
-)
-
 TICKERS = ['SBER', 'GAZP', 'LKOH', 'ROSN']
 
 settings = get_settings()
@@ -96,18 +90,12 @@ async def get_ticker_prediction(ticker: str) -> dict | None:
 
 
 def get_recommendation(price_change: float) -> tuple[str, str]:
-    """Возвращает рекомендацию и цвет на основе изменения цены"""
     if price_change > 1.0:
         return 'Покупать', 'success'
     elif price_change < -1.0:
         return 'Продавать', 'error'
     else:
         return 'Держать', 'warning'
-
-
-# Main Streamlit app
-st.title('Прогнозирование стоимости акций')
-st.markdown('### Прогноз на неделю')
 
 
 async def fetch_all_predictions():
@@ -121,42 +109,57 @@ async def fetch_all_predictions():
     return results
 
 
-# Fetch data
-all_predictions = asyncio.run(fetch_all_predictions())
+def main():
+    # Main Streamlit app
+    st.set_page_config(
+        page_title='Финансовый советник',
+        page_icon='📈',
+        layout='wide',
+        initial_sidebar_state='expanded',
+    )
+    st.title('Прогнозирование стоимости акций')
+    st.markdown('### Прогноз на неделю')
 
-# Display results
-cols = st.columns(len(TICKERS))
+    # Fetch data
+    all_predictions = asyncio.run(fetch_all_predictions())
 
-for idx, ticker in enumerate(TICKERS):
-    prediction, error = all_predictions[ticker]
+    # Display results
+    cols = st.columns(len(TICKERS))
 
-    with cols[idx]:
-        st.subheader(ticker)
+    for idx, ticker in enumerate(TICKERS):
+        prediction, error = all_predictions[ticker]
 
-        if error:
-            st.error(f'Ошибка: {error}')
-            continue
+        with cols[idx]:
+            st.subheader(ticker)
 
-        if not prediction:
-            st.warning('Нет данных')
-            continue
+            if error:
+                st.error(f'Ошибка: {error}')
+                continue
 
-        # Display current price
-        st.metric(label='Текущая цена', value=f'{prediction["current_price"]:.2f} ₽')
+            if not prediction:
+                st.warning('Нет данных')
+                continue
 
-        # Display predicted price with change
-        st.metric(
-            label='Прогноз цены',
-            value=f'{prediction["predicted_price"]:.2f} ₽',
-            delta=f'{prediction["predicted_price_change"]:.2f}%',
-        )
+            # Display current price
+            st.metric(label='Текущая цена', value=f'{prediction["current_price"]:.2f} ₽')
 
-        # Display recommendation
-        recommendation, status = get_recommendation(prediction['predicted_price_change'])
+            # Display predicted price with change
+            st.metric(
+                label='Прогноз цены',
+                value=f'{prediction["predicted_price"]:.2f} ₽',
+                delta=f'{prediction["predicted_price_change"]:.2f}%',
+            )
 
-        if status == 'success':
-            st.success(recommendation)
-        elif status == 'error':
-            st.error(recommendation)
-        else:
-            st.warning(recommendation)
+            # Display recommendation
+            recommendation, status = get_recommendation(prediction['predicted_price_change'])
+
+            if status == 'success':
+                st.success(recommendation)
+            elif status == 'error':
+                st.error(recommendation)
+            else:
+                st.warning(recommendation)
+
+
+if __name__ == '__main__':
+    main()

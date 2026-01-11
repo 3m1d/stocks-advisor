@@ -26,3 +26,13 @@ workers = 1
 [logging]
 format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 date_format = "%Y-%m-%d %H:%M:%S"
+
+[history]
+ignored_path_prefixes = [
+    '/api/v1/jwt',
+    '/api/v1/history',
+    '/openapi.json',
+    '/docs',
+    '/redoc',
+]
+max_response_size = 10000

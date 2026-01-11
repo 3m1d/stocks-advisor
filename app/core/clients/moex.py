@@ -101,6 +101,7 @@ class Ticker(StrEnum):
     VTB = 'VTBR'
     Tatneft = 'TATN'
     NorNickel = 'GMKN'
+    TCSGroup = 'TCSG'
 
 
 class MOEXClient:

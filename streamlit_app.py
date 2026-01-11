@@ -1,5 +1,4 @@
 import asyncio
-from datetime import datetime
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -59,19 +58,12 @@ async def get_ticker_data(ticker: str, num_data_points: int) -> pd.DataFrame:
             if raw_df.empty:
                 return pd.DataFrame()
 
-            # Keep original prices
-            close_prices = raw_df[['begin', 'close']].copy()
-            close_prices['begin'] = pd.to_datetime(close_prices['begin'])
-
             # Generate features
             feature_gen = FeatureGenerator()
-            processed_df = feature_gen.process(df=raw_df, include_original=False, add_targets=False, clean=True)
+            processed_df = feature_gen.process(df=raw_df, include_original=True)
 
             if processed_df.empty:
                 return pd.DataFrame()
-
-            # Skip first 250 points
-            processed_df = processed_df.iloc[250:]
 
             # Make predictions
             model_predictor = ModelPredictor(ticker, 'app/core/processors/models')
@@ -83,8 +75,7 @@ async def get_ticker_data(ticker: str, num_data_points: int) -> pd.DataFrame:
             predictions_df.rename(columns={'value': 'predicted_price_change'}, inplace=True)
 
             # Merge with actual close prices
-            result_df = predictions_df.merge(close_prices, on='begin', how='left')
-            assert isinstance(result_df, pd.DataFrame)
+            result_df = predictions_df.merge(processed_df, on='begin', how='left')
 
             # Convert percentage change to actual predicted price
             # Formula: predicted_price = current_price * (1 + price_change / 100)
@@ -92,6 +83,8 @@ async def get_ticker_data(ticker: str, num_data_points: int) -> pd.DataFrame:
 
             # Add 7 days to get the future date when the prediction applies
             result_df['future_date'] = result_df['begin'] + pd.Timedelta(days=7)
+
+            result_df = result_df[['begin', 'close', 'future_date', 'predicted_price_change', 'predicted_value']]
 
             return result_df
         finally:
@@ -122,9 +115,11 @@ def create_price_chart(data_df: pd.DataFrame, ticker: str) -> go.Figure:
                 mode='lines',
                 name='Прогноз',
                 line=dict(color='red', width=2),
-                customdata=data_df['predicted_price_change'],
+                customdata=list(zip(data_df['begin'], data_df['close'], data_df['predicted_price_change'])),
                 hovertemplate=(
-                    '<b>Прогноз</b><br>Дата: %{x}<br>Цена: %{y:.2f} ₽<br>Изменение: %{customdata:.2f}%<extra></extra>'
+                    '%{y:.2f}<br>'
+                    'Прогноз основан на: %{customdata[1]:.2f} ₽ (%{customdata[0]})<br>'
+                    'Прогнозируемое изменение: %{customdata[2]:.4f}%'
                 ),
             )
         )
@@ -175,4 +170,4 @@ for ticker in TICKERS:
             fig = create_price_chart(data_df, ticker)
             st.plotly_chart(fig, width='stretch')
         else:
-            st.warning(f'No data available for {ticker}')
+            st.warning(f'Нет данных для {ticker}')

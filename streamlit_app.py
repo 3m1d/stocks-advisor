@@ -1,7 +1,6 @@
 import asyncio
 
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -12,7 +11,7 @@ from app.core.processors.feature_generator import FeatureGenerator
 from app.core.processors.model_predictor import ModelPredictor
 
 st.set_page_config(
-    page_title='Stocks advisor',
+    page_title='Советник по акциям',
     layout='wide',
     initial_sidebar_state='expanded',
 )
@@ -44,130 +43,120 @@ def get_session_maker():
     )
 
 
-async def get_ticker_data(ticker: str, num_data_points: int) -> pd.DataFrame:
-    """Получает данные и прогнозы для тикера"""
+async def get_ticker_prediction(ticker: str) -> dict | None:
+    """Получает последний прогноз для тикера"""
     session_maker = get_session_maker()
 
     async with session_maker() as session:
         try:
             repo = AssetCandleRepository(session)
 
-            # Fetch data
-            raw_df = await repo.get_dataframe_by_ticker(ticker, num_data_points)
+            # Fetch enough data for feature generation (need ~1000 hourly points for 200 2h-intervals after aggregation)
+            raw_df = await repo.get_dataframe_by_ticker(ticker, 1000)
 
             if raw_df.empty:
-                return pd.DataFrame()
+                return None
 
             # Generate features
             feature_gen = FeatureGenerator()
             processed_df = feature_gen.process(df=raw_df, include_original=True)
 
             if processed_df.empty:
-                return pd.DataFrame()
+                return None
 
-            # Make predictions
+            # Make predictions on last row only
+            last_row_df = processed_df.iloc[[-1]]
             model_predictor = ModelPredictor(ticker, 'app/core/processors/models')
-            predictions = model_predictor.predict(processed_df)
+            predictions = model_predictor.predict(last_row_df)
 
-            # Convert to df
-            predictions_df = pd.DataFrame(predictions)
-            predictions_df['begin'] = pd.to_datetime(predictions_df['datetime'])
-            predictions_df.rename(columns={'value': 'predicted_price_change'}, inplace=True)
+            if not predictions:
+                return None
 
-            # Merge with actual close prices
-            result_df = predictions_df.merge(processed_df, on='begin', how='left')
+            prediction = predictions[0]  # Get first (and only) prediction
 
-            # Convert percentage change to actual predicted price
-            # Formula: predicted_price = current_price * (1 + price_change / 100)
-            result_df['predicted_value'] = result_df['close'] * (1 + result_df['predicted_price_change'] / 100)
+            # Get close price
+            current_price = processed_df.iloc[-1]['close']
+            current_date = processed_df.iloc[-1]['begin']
 
-            # Add 7 days to get the future date when the prediction applies
-            result_df['future_date'] = result_df['begin'] + pd.Timedelta(days=7)
+            # Calculate predicted price
+            predicted_price_change = prediction['value']
+            predicted_price = current_price * (1 + predicted_price_change / 100)
+            future_date = pd.to_datetime(current_date) + pd.Timedelta(days=7)
 
-            result_df = result_df[['begin', 'close', 'future_date', 'predicted_price_change', 'predicted_value']]
-
-            return result_df
+            return {
+                'ticker': ticker,
+                'current_price': current_price,
+                'current_date': current_date,
+                'predicted_price': predicted_price,
+                'predicted_price_change': predicted_price_change,
+                'future_date': future_date,
+            }
         finally:
-            # Ensure session is properly closed
             await session.close()
 
 
-def create_price_chart(data_df: pd.DataFrame, ticker: str) -> go.Figure:
-    fig = go.Figure()
-
-    # Add actual prices
-    if not data_df.empty:
-        fig.add_trace(
-            go.Scatter(
-                x=data_df['begin'],
-                y=data_df['close'],
-                mode='lines',
-                name='Цена акции',
-                line=dict(color='green', width=2),
-            )
-        )
-
-        # Add predicted future prices
-        fig.add_trace(
-            go.Scatter(
-                x=data_df['future_date'],
-                y=data_df['predicted_value'],
-                mode='lines',
-                name='Прогноз',
-                line=dict(color='red', width=2),
-                customdata=list(zip(data_df['begin'], data_df['close'], data_df['predicted_price_change'])),
-                hovertemplate=(
-                    '%{y:.2f}<br>'
-                    'Прогноз основан на: %{customdata[1]:.2f} ₽ (%{customdata[0]})<br>'
-                    'Прогнозируемое изменение: %{customdata[2]:.4f}%'
-                ),
-            )
-        )
-
-    fig.update_layout(
-        title=f'{ticker}',
-        xaxis_title='Дата',
-        yaxis_title='Цена (RUB)',
-        hovermode='x unified',
-        template='plotly_white',
-        height=700,
-    )
-
-    return fig
+def get_recommendation(price_change: float) -> tuple[str, str]:
+    """Возвращает рекомендацию и цвет на основе изменения цены"""
+    if price_change > 1.0:
+        return 'Покупать', 'success'
+    elif price_change < -1.0:
+        return 'Продавать', 'error'
+    else:
+        return 'Держать', 'warning'
 
 
 # Main Streamlit app
 st.title('Прогнозирование стоимости акций')
+st.markdown('### Прогноз на неделю')
 
-NUM_DATA_POINTS = 3600  # 6 months of data
 
-
-async def fetch_all_tickers_data(num_data_points: int):
+async def fetch_all_predictions():
     results = {}
     for ticker in TICKERS:
         try:
-            data_df = await get_ticker_data(ticker, num_data_points)
-            results[ticker] = (data_df, None)
+            prediction = await get_ticker_prediction(ticker)
+            results[ticker] = (prediction, None)
         except Exception as e:
-            results[ticker] = (pd.DataFrame(), str(e))
+            results[ticker] = (None, str(e))
     return results
 
 
 # Fetch data
-all_data = asyncio.run(fetch_all_tickers_data(NUM_DATA_POINTS))
+all_predictions = asyncio.run(fetch_all_predictions())
 
 # Display results
-for ticker in TICKERS:
-    data_df, error = all_data[ticker]
+cols = st.columns(len(TICKERS))
 
-    with st.spinner(f'Загрузка данных для {ticker}...'):
+for idx, ticker in enumerate(TICKERS):
+    prediction, error = all_predictions[ticker]
+
+    with cols[idx]:
+        st.subheader(ticker)
+
         if error:
-            st.error(f'Ошибка загрузки данных для {ticker}: {error}')
+            st.error(f'Ошибка: {error}')
             continue
 
-        # Create chart
-        if not data_df.empty:
-            fig = create_price_chart(data_df, ticker)
-            st.plotly_chart(fig, width='stretch')
+        if not prediction:
+            st.warning('Нет данных')
+            continue
+
+        # Display current price
+        st.metric(label='Текущая цена', value=f'{prediction["current_price"]:.2f} ₽')
+
+        # Display predicted price with change
+        st.metric(
+            label='Прогноз цены',
+            value=f'{prediction["predicted_price"]:.2f} ₽',
+            delta=f'{prediction["predicted_price_change"]:.2f}%',
+        )
+
+        # Display recommendation
+        recommendation, status = get_recommendation(prediction['predicted_price_change'])
+
+        if status == 'success':
+            st.success(recommendation)
+        elif status == 'error':
+            st.error(recommendation)
         else:
-            st.warning(f'Нет данных для {ticker}')
+            st.warning(recommendation)

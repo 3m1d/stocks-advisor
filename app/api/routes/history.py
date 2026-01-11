@@ -9,7 +9,7 @@ from app.core.schemas.jwt_auth import TokenPayload, UserSchema
 router = APIRouter(prefix='/history', tags=['History'])
 
 
-@router.get('/', response_model=HistoryListResponse)
+@router.get('/')
 async def get_history(
     session: DBSession,
     limit: int = Query(default=100, ge=1),
@@ -30,7 +30,7 @@ async def get_history(
     )
 
 
-@router.delete('/', response_model=HistoryDeleteResponse)
+@router.delete('/')
 async def delete_history(session: DBSession, _: TokenPayload = Depends(require_admin)) -> HistoryDeleteResponse:
     """Deletes an entire requests history"""
     repo: RequestHistoryRepository = RequestHistoryRepository(session)
@@ -40,7 +40,7 @@ async def delete_history(session: DBSession, _: TokenPayload = Depends(require_a
     return HistoryDeleteResponse(deleted_count=deleted_count)
 
 
-@router.get('/stats', response_model=StatsResponse)
+@router.get('/stats')
 async def get_stats(session: DBSession) -> StatsResponse:
     """Requests stats"""
     repo = RequestHistoryRepository(session)

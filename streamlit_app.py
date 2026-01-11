@@ -38,7 +38,7 @@ def get_session_maker():
 
 
 async def get_ticker_prediction(ticker: str) -> dict | None:
-    """Получает последний прогноз для тикера"""
+    """Получает прогноз для тикера"""
     session_maker = get_session_maker()
 
     async with session_maker() as session:
@@ -89,13 +89,13 @@ async def get_ticker_prediction(ticker: str) -> dict | None:
             await session.close()
 
 
-def get_recommendation(price_change: float) -> tuple[str, str]:
+def display_recommendation(price_change: float) -> None:
     if price_change > 1.0:
-        return 'Покупать', 'success'
+        st.success('Покупать')
     elif price_change < -1.0:
-        return 'Продавать', 'error'
+        st.error('Продавать')
     else:
-        return 'Держать', 'warning'
+        st.warning('Держать')
 
 
 async def fetch_all_predictions():
@@ -103,9 +103,9 @@ async def fetch_all_predictions():
     for ticker in TICKERS:
         try:
             prediction = await get_ticker_prediction(ticker)
-            results[ticker] = (prediction, None)
+            results[ticker] = prediction
         except Exception as e:
-            results[ticker] = (None, str(e))
+            st.error(f'Ошибка: {e}')
     return results
 
 
@@ -127,14 +127,10 @@ def main():
     cols = st.columns(len(TICKERS))
 
     for idx, ticker in enumerate(TICKERS):
-        prediction, error = all_predictions[ticker]
+        prediction = all_predictions[ticker]
 
         with cols[idx]:
             st.subheader(ticker)
-
-            if error:
-                st.error(f'Ошибка: {error}')
-                continue
 
             if not prediction:
                 st.warning('Нет данных')
@@ -151,14 +147,7 @@ def main():
             )
 
             # Display recommendation
-            recommendation, status = get_recommendation(prediction['predicted_price_change'])
-
-            if status == 'success':
-                st.success(recommendation)
-            elif status == 'error':
-                st.error(recommendation)
-            else:
-                st.warning(recommendation)
+            display_recommendation(prediction['predicted_price_change'])
 
 
 if __name__ == '__main__':

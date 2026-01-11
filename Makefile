@@ -55,7 +55,7 @@ alembic-run-migration-local:
 # App
 ###############
 
-.PHONY: fastapi-run-dev fastapi-run-dev-local
+.PHONY: fastapi-run-dev fastapi-run-dev-local streamlit-run streamlit-run-local
 
 # Запустить сервер для разработки.
 # Конфиг БД берется из .env файла или переменных окружения.
@@ -66,6 +66,15 @@ fastapi-run-dev:
 # Конфиг БД берется из config_local.toml файла.
 fastapi-run-dev-local:
 	APP_CONFIG=config_local.toml uv run fastapi dev app/main.py
+
+# Запустить Streamlit UI дашборд
+# Конфиг БД берется из .env файла или переменных окружения.
+streamlit-run:
+	APP_CONFIG=config.toml uv run streamlit run streamlit_app.py
+
+# Запустить Streamlit UI дашборд с локальной БД
+streamlit-run-local:
+	APP_CONFIG=config_local.toml uv run streamlit run streamlit_app.py
 
 ###############
 # Docker

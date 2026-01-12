@@ -11,7 +11,7 @@ router = APIRouter(prefix='/predict', tags=['Predict'])
 
 async def fetch_and_process_candles(ticker: str, num_records: int, session: AsyncSession):
     repo = AssetCandleRepository(session)
-    df = await repo.get_dataframe_by_ticker(ticker, num_records + 200)
+    df = await repo.get_dataframe_by_ticker(ticker, num_records + 800)
 
     if df.empty:
         raise HTTPException(404, f"No data found for ticker '{ticker}'")
@@ -32,7 +32,7 @@ async def forward_inference(ticker: str, num_records: int, session: DBSession):
         processed_df = await fetch_and_process_candles(ticker, num_records, session)
         model_predictor = ModelPredictor(ticker, 'app/core/processors/models')
         predictions = model_predictor.predict(processed_df)
-        return predictions
+        return predictions[-num_records:]
     except HTTPException:
         raise
     except FileNotFoundError:

@@ -36,6 +36,7 @@ dependencies = [
     "streamlit>=1.52.2",
     "plotly>=6.5.0",
     "nbformat>=5.10.4",
+    "statsmodels>=0.14.6",
 ]
 
 [dependency-groups]

@@ -7,8 +7,8 @@ from app.core.schemas.jwt_auth import TokenInfo, UserSchema
 router = APIRouter(prefix='/jwt', tags=['JWT'])
 
 
-@router.post('/login', response_model=TokenInfo)
-async def login_access_token(user: UserSchema = Depends(authenticate_user)):
+@router.post('/login')
+async def login_access_token(user: UserSchema = Depends(authenticate_user)) -> TokenInfo:
     """
     Generate JWT token for future requests
     """

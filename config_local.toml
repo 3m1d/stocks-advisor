@@ -1,3 +1,10 @@
+[database]
+host = "localhost"
+port = "5432"
+name = "stocks_advisor_db"
+user = "stocks_advisor_app_user"
+password = "stocks_advisor_app_password"
+
 [app]
 name = "stocks-advisor"
 version = "0.1.0"

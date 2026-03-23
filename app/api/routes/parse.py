@@ -9,7 +9,7 @@ from app.core.schemas import ParseResponse
 router = APIRouter(prefix='/parse', tags=['Parse'])
 
 
-@router.post('/', response_model=ParseResponse)
+@router.post('/')
 async def parse_stock_data(start_date: date, end_date: date, session: DBSession) -> ParseResponse:
     """Parse MOEX stock data for a date range and insert into database."""
     processor = AssetParserProcessor(session)

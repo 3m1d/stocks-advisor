@@ -7,23 +7,17 @@ from datetime import datetime
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
+from app.config import get_settings
 from app.core.database import RequestHistoryRepository
 from app.core.database.db_models.request_history import HTTPMethodEnum
 from app.core.database.session import async_session_factory
 
+settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Writes requests history into database"""
-
-    IGNORED_PATH_PREFIXES = (
-        '/api/v1/jwt',
-        '/api/v1/history',
-        '/openapi.json',
-        '/docs',
-        '/redoc',
-    )
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         request_datetime = datetime.now(zoneinfo.ZoneInfo('Europe/Moscow')).replace(tzinfo=None)
@@ -43,7 +37,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         path = request.url.path
 
         # Don't log ignored prefixes
-        for prefix in self.IGNORED_PATH_PREFIXES:
+        for prefix in settings.history.ignored_path_prefixes:
             if path.startswith(prefix):
                 return await call_next(request)
 
@@ -121,7 +115,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             if hasattr(response, 'body'):
                 body: bytes = await response.body
 
-                if len(body) >= 10_000:  # 10 KB
+                if len(body) >= settings.history.max_response_size:
                     response_body = {}
 
                 if body:

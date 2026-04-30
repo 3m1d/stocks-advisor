@@ -9,6 +9,7 @@ __pycache__/
 *.csv
 *.bin
 *.gz
+*.pt
 
 models/
 catboost_info/

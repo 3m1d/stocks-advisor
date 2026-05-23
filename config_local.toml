@@ -1,6 +1,6 @@
 [database]
 host = "localhost"
-port = "5432"
+port = "15432"
 name = "stocks_advisor_db"
 user = "stocks_advisor_app_user"
 password = "stocks_advisor_app_password"
@@ -36,3 +36,14 @@ ignored_path_prefixes = [
     '/redoc',
 ]
 max_response_size = 10000
+
+[mlflow]
+# Локальные minio и mlflow, запущенные через docker
+# Этот конфиг перезаписывает продовый конфиг из .env
+tracking_uri = "http://localhost:5000"
+s3_endpoint_url = "http://localhost:9000"
+artifact_root = "s3://mlflow-bucket/mlflow"
+aws_region = "us-east-1"
+default_experiment = "stocks-advisor"
+aws_access_key_id = "minioadmin"
+aws_secret_access_key = "minioadmin"

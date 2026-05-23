@@ -103,6 +103,20 @@ class HistorySettings(BaseModel):
     max_response_size: int = 10_000
 
 
+class MlflowSettings(BaseModel):
+    """Настройки MLflow и S3 (секреты — в .env с префиксом MLFLOW__)"""
+
+    tracking_uri: str = 'http://localhost:5050'
+    s3_endpoint_url: str = 'http://localhost:9000'
+    artifact_root: str = 's3://mlflow-bucket/mlflow'
+    aws_access_key_id: str = 'minioadmin'
+    aws_secret_access_key: str = 'minioadmin'
+    aws_region: str = 'us-east-1'
+    default_experiment: str = 'stocks-advisor'
+    tracking_username: str | None = None
+    tracking_password: str | None = None
+
+
 class Settings(BaseSettings):
     """Настройки приложения.
 
@@ -118,6 +132,7 @@ class Settings(BaseSettings):
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     jwt: AuthJWTSettings = Field(default_factory=AuthJWTSettings)
     history: HistorySettings = Field(default_factory=HistorySettings)
+    mlflow: MlflowSettings = Field(default_factory=MlflowSettings)
 
     model_config = SettingsConfigDict(
         env_file='.env',
@@ -140,7 +155,6 @@ class Settings(BaseSettings):
         config_file = PROJECT_ROOT / config_file
 
         toml_config = TomlConfigSettingsSource(settings_cls, toml_file=str(config_file))
-        # Toml has higher priority than env variables
         sources = [
             init_settings,
             toml_config,

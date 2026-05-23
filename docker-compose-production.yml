@@ -1,0 +1,91 @@
+# Запускает minio и mlflow
+# Postgresql запущен на отдельной VM
+services:
+  # S3
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: stocks-advisor-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "127.0.0.1:${MINIO_API_HOST_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_HOST_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 1m30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # S3 bucket init (one-shot; mc image has no grep — use --ignore-existing)
+  mc:
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    container_name: minio_mc
+    volumes:
+      - minio_data:/data
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set minio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
+      mc mb minio/${MLFLOW_S3_BUCKET} --ignore-existing
+      "
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: on-failure
+
+  # MLFlow
+  mlflow-service:
+    build:
+      context: ./docker/mlflow
+      dockerfile: Dockerfile
+    image: stocks-advisor-mlflow:3.12
+    container_name: stocks-advisor-mlflow
+    restart: unless-stopped
+    depends_on:
+      minio:
+        condition: service_healthy
+      mc:
+        condition: service_completed_successfully
+    environment:
+      MLFLOW_AUTH_CONFIG_PATH: /basic_auth.ini
+      MLFLOW_FLASK_SERVER_SECRET_KEY: ${MLFLOW_FLASK_SERVER_SECRET_KEY}
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
+    command:
+      - bash
+      - -c
+      - |
+        mlflow server --host 0.0.0.0 --port 5000 \
+            --backend-store-uri ${MLFLOW_BACKEND_STORE_URI} \
+            --default-artifact-root s3://${MLFLOW_S3_BUCKET}/mlflow \
+            --artifacts-destination s3://${MLFLOW_S3_BUCKET}/mlflow \
+            --serve-artifacts
+    ports:
+      - "127.0.0.1:${MLFLOW_HOST_PORT:-5050}:5000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+volumes:
+  minio_data:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ${MINIO_DATA_DIR:-./data/minio_data_production}

@@ -1,4 +1,5 @@
 services:
+  # Postgresql container
   postgres:
     image: postgres:16-alpine
     container_name: stocks-advisor-postgres
@@ -12,6 +13,7 @@ services:
       - "5432:5432"
     volumes:
       - stocks_advisor_postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test:
         [
@@ -22,5 +24,91 @@ services:
       timeout: 5s
       retries: 5
 
+  # S3
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: "minioadmin"
+      MINIO_ROOT_PASSWORD: "minioadmin"
+    volumes:
+      - "minio_data:/data"
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 1m30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # S3 bucket init (launches once)
+  mc:
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    container_name: minio_mc
+    environment:
+      MINIO_ROOT_USER: "minioadmin"
+      MINIO_ROOT_PASSWORD: "minioadmin"
+    volumes:
+      - minio_data:/data
+    entrypoint: >
+      bash -c "
+      mc alias set minio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
+      mc mb minio/mlflow-bucket --ignore-existing
+      "
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: on-failure
+
+  # MLFlow
+  mlflow-service:
+    image: ghcr.io/mlflow/mlflow:v3.12.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      AWS_DEFAULT_REGION: us-east-1
+    command:
+      - bash
+      - -c
+      - |
+        pip install boto3 psycopg2-binary --quiet
+        mlflow server --host 0.0.0.0 --port 5000 \
+            --backend-store-uri postgresql://stocks_advisor_app_user:stocks_advisor_app_password@postgres:5432/mlflow \
+            --default-artifact-root s3://mlflow-bucket/mlflow \
+            --artifacts-destination s3://mlflow-bucket/mlflow \
+            --serve-artifacts
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow-data:/mlflow
+    restart: unless-stopped
+
 volumes:
+  mlflow-data:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ./data/mlflow_data
+  minio_data:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ./data/minio_data
   stocks_advisor_postgres_data:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ./data/postgres_data

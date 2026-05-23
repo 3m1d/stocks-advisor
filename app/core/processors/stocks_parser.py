@@ -15,7 +15,7 @@ class StocksParser:
         self,
         date_start=DATE_START,
         date_end=None,
-        interval=Interval.DAY_1,
+        interval=Interval.HOUR_1,
     ) -> None:
         self.moex_client = MOEXClient()
         self.date_start = date_start

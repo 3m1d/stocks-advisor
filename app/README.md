@@ -143,7 +143,7 @@ ssh -L 15432:<postgresql IP>:5432 <user>@<server IP> -p <ssh port>
 
 ```env
 DATABASE__HOST=localhost
-DATABASE__PORT=54321
+DATABASE__PORT=15432
 ```
 
 ### Как добавить/изменить таблицу БД?

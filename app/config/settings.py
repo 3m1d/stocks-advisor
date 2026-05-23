@@ -106,9 +106,9 @@ class HistorySettings(BaseModel):
 class MlflowSettings(BaseModel):
     """Настройки MLflow и S3"""
 
-    tracking_uri: str = 'http://localhost:5000'
+    tracking_uri: str = 'http://localhost:5050'
     s3_endpoint_url: str = 'http://localhost:9000'
-    artifact_root: str = 's3://mlflow-artifacts/'
+    artifact_root: str = 's3://mlflow-bucket/mlflow'
     aws_access_key_id: str = Field(
         default='minioadmin',
         description='S3 access key (MLFLOW__AWS_ACCESS_KEY_ID)',

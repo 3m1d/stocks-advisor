@@ -56,12 +56,8 @@ services:
       - minio_data:/data
     entrypoint: >
       bash -c "
-      mc alias set minio http://minio:9000 admin password &&
-      if ! mc ls minio | grep --quiet mlflow-bucket; then
-        mc mb minio/mlflow-bucket
-      else
-        echo 'mlflow-bucket already exists'
-      fi
+      mc alias set minio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
+      mc mb minio/mlflow-bucket --ignore-existing
       "
     depends_on:
       minio:
@@ -71,14 +67,16 @@ services:
   # MLFlow
   mlflow-service:
     image: ghcr.io/mlflow/mlflow:v3.12.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     environment:
-      POSTGRES_USER: stocks_advisor_app_user
-      POSTGRES_PASSWORD: stocks_advisor_app_password
-      DEFAULT_BUCKET_NAME: mlflow-bucket
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
-      AWS_ACCESS_KEY_ID: admin
-      AWS_SECRET_ACCESS_KEY: password
-      # AWS_DEFAULT_REGION: ru-central1
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      AWS_DEFAULT_REGION: us-east-1
     command:
       - bash
       - -c
@@ -92,8 +90,7 @@ services:
     ports:
       - "5050:5000"
     volumes:
-      # - mlflow-data:/mlflow
-      - ./data/mlflow:/mlflow
+      - mlflow-data:/mlflow
     restart: unless-stopped
 
 volumes:

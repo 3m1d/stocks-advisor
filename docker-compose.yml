@@ -40,7 +40,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
-    restart: always
+    restart: unless-stopped
 
   # S3 bucket init (launches once)
   mc:
@@ -88,6 +88,7 @@ services:
     volumes:
       # - mlflow-data:/mlflow
       - ./data/mlflow:/mlflow
+    restart: unless-stopped
 
 volumes:
   mlflow-data:

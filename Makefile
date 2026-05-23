@@ -80,21 +80,38 @@ streamlit-run-local:
 # Docker
 ###############
 
-.PHONY: docker-up docker-down docker-clean-volumes
+.PHONY: docker-up docker-down docker-restart docker-clean-volumes docker-prod-up docker-prod-down docker-prod-logs
+
+COMPOSE_PROD = docker compose -f docker-compose-production.yml --env-file production.env
 
 # Запустить docker контейнеры
 docker-up:
 	mkdir -p data/postgres_data data/minio_data data/mlflow_data data/mlflow
 	docker compose up -d
 
+# Запуск с production конфигом
+docker-prod-up:
+	mkdir -p data/minio_data
+	$(COMPOSE_PROD) up -d --build
+
+docker-prod-down:
+	$(COMPOSE_PROD) down
+
+docker-prod-logs:
+	$(COMPOSE_PROD) logs -f minio mlflow-service
+
 # Остановить docker контейнеры
 docker-down:
 	docker compose down
+
+# Перезапуск контейнеров
+docker-restart: docker-down docker-up
 
 # Остановить docker контейнеры и удалить volumes, указанные в docker-compose.yml.
 # Полезно, если нужно очистить тестовые данные в БД.
 docker-clean-volumes:
 	docker compose down -v
+
 
 ###############
 # Utils

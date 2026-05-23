@@ -223,4 +223,15 @@ notebooks/parsing/testing/data
 # OpenSSL keys
 *.pem
 
+# MLflow local fallback
+mlruns/
+mlflow.db
 
+# Local docker compose data
+data
+
+# Local CLI apps for personal use
+.cli
+
+# Production envs
+production.env

@@ -107,6 +107,7 @@ class Ticker(StrEnum):
     CNYRUBf = 'CNYRUBF'
     IMOEX = 'IMOEX'
     GLDRUB = 'GLDRUB_TOM'
+    Brent = 'BRENT'
 
 
 class MOEXClient:

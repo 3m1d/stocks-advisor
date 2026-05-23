@@ -38,10 +38,10 @@ class StocksParser:
     @staticmethod
     def _fill_missing_volumes(data: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
         for ticker, df in data.items():
-            if df.empty or 'volume' not in df.columns:
+            if not isinstance(df, pd.DataFrame) or df.empty or 'volume' not in df.columns:
                 continue
             df = df.copy()
-            df['volume'] = df['volume'].fillna(0).astype('int64')
+            df['volume'] = pd.to_numeric(df['volume'], errors='coerce').fillna(0).astype('int64')
             data[ticker] = df
         return data
 
@@ -106,7 +106,11 @@ class StocksParser:
             end_date=self.date_end,
             interval=self.interval,
         )
-        return await self.build_brent_continuous(self.date_start, self.date_end, prices, futures_meta, roll_window=5)
+        return {
+            Ticker.Brent: await self.build_brent_continuous(
+                self.date_start, self.date_end, prices, futures_meta, roll_window=5
+            )
+        }
 
     async def get_brent_prices(self):
         futures_meta = await self.get_brent_futures_metadata()
@@ -283,13 +287,15 @@ class StocksParser:
                 rows.append(
                     {
                         'begin': timestamp_t,
+                        'end': timestamp_t + timedelta(hours=1) - timedelta(seconds=1),
                         'open': row['open'],
                         'high': row['high'],
                         'low': row['low'],
                         'close': row['close'],
                         'volume': row['volume'] if pd.notna(row['volume']) else 0,
                         'value': row['value'],
-                        'ticker': ticker,
+                        'ticker': Ticker.Brent,
+                        'contract': ticker,
                         'expiry': expiry,
                         'days_to_expiry': self.count_trading_days(timestamp_t.date(), expiry.date()),
                     }
@@ -298,7 +304,10 @@ class StocksParser:
                 missing_data_count += 1
 
         df = pd.DataFrame(rows)
-        print(f'\n✓ Generated {len(df)} data points from {df["begin"].min()} to {df["begin"].max()}')
+        if df.empty:
+            print('\n⚠ No Brent continuous series data generated')
+        else:
+            print(f'\n✓ Generated {len(df)} data points from {df["begin"].min()} to {df["begin"].max()}')
         if missing_data_count > 0:
             print(f'⚠ Missing {missing_data_count} timestamps (no contract had data)')
         return df

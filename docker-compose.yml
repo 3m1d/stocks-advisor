@@ -1,26 +1,114 @@
 services:
+  # Postgresql container
   postgres:
     image: postgres:16-alpine
     container_name: stocks-advisor-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: stocks_advisor_app_user
-      POSTGRES_PASSWORD: stocks_advisor_app_password
-      POSTGRES_DB: stocks_advisor_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       PGDATA: /var/lib/postgresql/data/pgdata
+    env_file:
+      - ./local.env
     ports:
       - "5432:5432"
     volumes:
       - stocks_advisor_postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U stocks_advisor_app_user -d stocks_advisor_db",
-        ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # S3
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: minio
+    ports:
+      - "${S3_API_PORT}:9000"
+      - "${S3_UI_PORT}:9001"
+    volumes:
+      - "minio_data:/data"
+    env_file:
+      - ./local.env
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 1m30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: always
+
+  # S3 bucket init (launches once)
+  mc:
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    container_name: minio_mc
+    volumes:
+      - minio_data:/data
+    env_file:
+      - ./local.env
+    entrypoint: >
+      bash -c "
+      mc alias set minio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
+      if ! mc ls minio | grep --quiet ${DEFAULT_BUCKET_NAME}; then
+        mc mb minio/${DEFAULT_BUCKET_NAME}
+      else
+        echo '${DEFAULT_BUCKET_NAME} already exists'
+      fi
+      "
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: on-failure
+
+  # MLFlow
+  mlflow-service:
+    image: ghcr.io/mlflow/mlflow:v3.12.0
+    env_file:
+      - ./local.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DEFAULT_BUCKET_NAME: ${DEFAULT_BUCKET_NAME}
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: password
+      # AWS_DEFAULT_REGION: ru-central1
+    command:
+      - bash
+      - -c
+      - |
+        pip install boto3 psycopg2-binary --quiet
+        mlflow server --host 0.0.0.0 --port 5000 \
+            --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB} \
+            --default-artifact-root s3://mlflow-bucket/mlflow \
+            --artifacts-destination s3://mlflow-bucket/mlflow \
+            --serve-artifacts
+    ports:
+      - "5050:5000"
+    volumes:
+      # - mlflow-data:/mlflow
+      - ./data/mlflow:/mlflow
+
 volumes:
+  mlflow-data:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ./data/mlflow_data
+  minio_data:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ./data/minio_data
   stocks_advisor_postgres_data:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ./data/postgres_data

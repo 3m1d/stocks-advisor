@@ -1,1 +1,2 @@
 CREATE DATABASE mlflow_auth;
+CREATE DATABASE mlflow;

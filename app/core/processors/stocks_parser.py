@@ -32,7 +32,18 @@ class StocksParser:
         imoex = await self.parse_imoex()
         gold = await self.parse_gold()
         brent = await self.parse_brent()
-        return {**stocks, **currencies, **imoex, **gold, **brent}
+        data = {**stocks, **currencies, **imoex, **gold, **brent}
+        return self._fill_missing_volumes(data)
+
+    @staticmethod
+    def _fill_missing_volumes(data: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
+        for ticker, df in data.items():
+            if df.empty or 'volume' not in df.columns:
+                continue
+            df = df.copy()
+            df['volume'] = df['volume'].fillna(0).astype('int64')
+            data[ticker] = df
+        return data
 
     async def parse_stocks(self):
         return await self.moex_client.get_data(
@@ -276,7 +287,7 @@ class StocksParser:
                         'high': row['high'],
                         'low': row['low'],
                         'close': row['close'],
-                        'volume': row['volume'],
+                        'volume': row['volume'] if pd.notna(row['volume']) else 0,
                         'value': row['value'],
                         'ticker': ticker,
                         'expiry': expiry,

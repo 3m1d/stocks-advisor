@@ -102,6 +102,11 @@ class Ticker(StrEnum):
     Tatneft = 'TATN'
     NorNickel = 'GMKN'
     TCSGroup = 'TCSG'
+    USDRUBf = 'USDRUBF'
+    EURRUBf = 'EURRUBF'
+    CNYRUBf = 'CNYRUBF'
+    IMOEX = 'IMOEX'
+    GLDRUB = 'GLDRUB_TOM'
 
 
 class MOEXClient:

@@ -91,7 +91,7 @@ docker-up:
 
 # Запуск с production конфигом
 docker-prod-up:
-	mkdir -p data/minio_data
+	mkdir -p data/minio_data_production
 	$(COMPOSE_PROD) up -d --build
 
 docker-prod-down:

@@ -1,20 +1,37 @@
 # 📈 Инвестиционный Советник
 
 ## ⚙️ Установка
+
 #### 1. Установить `uv`
-https://docs.astral.sh/uv/getting-started/installation/
+
+<https://docs.astral.sh/uv/getting-started/installation/>
 
 #### 2. Склонировать репозиторий
+
 ```bash
 git clone https://github.com/3m1d/stocks-advisor.git
 cd stocks-advisor
 ```
 
 #### 3. Синхронизировать репозиторий
+
 ```bash
 uv sync
 ```
 
+#### 4. Запустить postgresql, mlflow, s3
+
+```bash
+make docker-up
+```
+
+#### 5. Запустить приложение
+
+```bash
+make fastapi-run-dev-local
+```
+
+Подробнее: [docs/mlflow.md](docs/mlflow.md)
 
 ## 👥 Команда проекта
 
@@ -39,11 +56,11 @@ uv sync
 
 ## 📋 План разработки
 
-1.  Знакомство с командой и куратором, определение темы работы, источников данных, изучение аналогов, создание репозитория проекта
+1. Знакомство с командой и куратором, определение темы работы, источников данных, изучение аналогов, создание репозитория проекта
 
-2.  Парсинг данных из выбранных источников: обзорных (КИТФинанс, ТБанк, Альфа-Банк, Инвестинг), новостных (t.me/cbrstocks) и источников для технического анализа (Московская биржа, Finam, Investing.com)
+2. Парсинг данных из выбранных источников: обзорных (КИТФинанс, ТБанк, Альфа-Банк, Инвестинг), новостных (t.me/cbrstocks) и источников для технического анализа (Московская биржа, Finam, Investing.com)
 
-3.  Разведочный анализ данных, приведение данных к правильному формату для использования в моделях машинного обучения
+3. Разведочный анализ данных, приведение данных к правильному формату для использования в моделях машинного обучения
 
 4. Разработка базовой модели на основе технического анализа для рекомендации активов к покупке
 
@@ -59,20 +76,20 @@ uv sync
 
 ## 🛠 Источники данных
 
-- КИТФинанс: https://brokerkf.ru/invest/analytics/market_reviews/
+- КИТФинанс: <https://brokerkf.ru/invest/analytics/market_reviews/>
 
-- ТБанк: https://www.tbank.ru/invest/research/review/
+- ТБанк: <https://www.tbank.ru/invest/research/review/>
 
-- Альфа-Банк: https://alfabank.ru/alfa-investor/
+- Альфа-Банк: <https://alfabank.ru/alfa-investor/>
 
-- Инвестинг: https://ru.investing.com/analysis/stock-markets
+- Инвестинг: <https://ru.investing.com/analysis/stock-markets>
 
-- cbrstocks: https://t.me/cbrstocks
+- cbrstocks: <https://t.me/cbrstocks>
 
-- Московская биржа: https://iss.moex.com/iss/reference/
+- Московская биржа: <https://iss.moex.com/iss/reference/>
 
-- Finam: https://export.finam.ru
+- Finam: <https://export.finam.ru>
 
-- Investing.com: https://www.investing.com/
+- Investing.com: <https://www.investing.com/>
 
 ---

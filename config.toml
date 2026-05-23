@@ -32,9 +32,5 @@ max_response_size = 10000
 
 [mlflow]
 tracking_uri = "http://localhost:5050"
-s3_endpoint_url = "http://localhost:9000"
 artifact_root = "s3://mlflow-bucket/mlflow"
-aws_access_key_id = "minioadmin"
-aws_secret_access_key = "minioadmin"
-aws_region = "us-east-1"
 default_experiment = "stocks-advisor"

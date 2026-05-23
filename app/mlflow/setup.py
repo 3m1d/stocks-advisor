@@ -4,7 +4,7 @@ from app.config import get_settings
 
 
 def configure_mlflow(experiment_name: str | None = None) -> None:
-    """Настраивает MLflow client: tracking URI и experiment."""
+    """Настраивает MLflow client"""
     settings = get_settings().mlflow
     experiment = experiment_name or settings.default_experiment
 

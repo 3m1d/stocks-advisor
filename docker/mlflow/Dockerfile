@@ -1,7 +1,8 @@
-FROM python:3.13-slim
+FROM python:3.12-slim
 
-COPY ./basic_auth.ini /basic_auth.ini
+COPY basic_auth.ini /basic_auth.ini
+COPY requirements.txt .
 
-RUN pip install --no-cache-dir mlflow[auth] psycopg2-binary boto3 bulkboto3
+RUN pip install --no-cache-dir -r requirements.txt
 
 EXPOSE 5000

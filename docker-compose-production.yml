@@ -47,7 +47,7 @@ services:
     build:
       context: ./docker/mlflow
       dockerfile: Dockerfile
-    image: stocks-advisor-mlflow:3.13
+    image: stocks-advisor-mlflow:3.12
     container_name: stocks-advisor-mlflow
     restart: unless-stopped
     depends_on:

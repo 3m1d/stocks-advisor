@@ -1,6 +1,6 @@
 [database]
 host = "localhost"
-port = "15432"
+port = "5432"
 name = "stocks_advisor_db"
 user = "stocks_advisor_app_user"
 password = "stocks_advisor_app_password"

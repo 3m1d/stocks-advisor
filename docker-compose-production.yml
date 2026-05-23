@@ -22,20 +22,16 @@ services:
       retries: 5
       start_period: 60s
 
-  # S3 bucket init
+  # S3 bucket init (one-shot; mc image has no grep — use --ignore-existing)
   mc:
     image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
     container_name: minio_mc
     volumes:
       - minio_data:/data
     entrypoint: >
-      bash -c "
+      /bin/sh -c "
       mc alias set minio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
-      if ! mc ls minio | grep --quiet ${MLFLOW_S3_BUCKET}; then
-        mc mb minio/${MLFLOW_S3_BUCKET}
-      else
-        echo '${MLFLOW_S3_BUCKET} already exists'
-      fi
+      mc mb minio/${MLFLOW_S3_BUCKET} --ignore-existing
       "
     depends_on:
       minio:

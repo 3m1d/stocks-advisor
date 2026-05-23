@@ -119,14 +119,14 @@ docker-clean-volumes:
 # Utils
 ###############
 
-.PHONY: hash-password generate-jwt-certs parse-data-from-moex parse-data-from-moex-local mlflow-smoke-test mlflow-smoke-test-local
+.PHONY: hash-password generate-jwt-certs parse-data-from-moex parse-data-from-moex-local mlflow-smoke-test mlflow-smoke-test-prod
 
-# Проверка подключения к MLflow
+# Проверка подключения к MLFlow
 mlflow-smoke-test:
-	$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python -m app.scripts.mlflow_smoke_test
-
-mlflow-smoke-test-local:
 	$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run python -m app.scripts.mlflow_smoke_test
+
+mlflow-smoke-test-prod:
+	$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python -m app.scripts.mlflow_smoke_test
 
 # Получить хэш пароля (алгоритм argon2)
 hash-password:

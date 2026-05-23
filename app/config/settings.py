@@ -155,7 +155,6 @@ class Settings(BaseSettings):
         config_file = PROJECT_ROOT / config_file
 
         toml_config = TomlConfigSettingsSource(settings_cls, toml_file=str(config_file))
-        # Toml has higher priority than env variables
         sources = [
             init_settings,
             toml_config,

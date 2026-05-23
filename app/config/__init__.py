@@ -3,6 +3,7 @@ from app.config.settings import (
     AppSettings,
     DatabaseSettings,
     LoggingSettings,
+    MlflowSettings,
     MOEXSettings,
     Settings,
     get_settings,
@@ -16,6 +17,7 @@ __all__ = [
     'MOEXSettings',
     'APISettings',
     'LoggingSettings',
+    'MlflowSettings',
     'get_settings',
     'setup_logging',
 ]

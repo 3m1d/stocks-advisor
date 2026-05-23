@@ -22,7 +22,7 @@ services:
       retries: 5
       start_period: 60s
 
-  # S3 bucket init (launches once)
+  # S3 bucket init
   mc:
     image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
     container_name: minio_mc
@@ -53,7 +53,7 @@ services:
     depends_on:
       minio:
         condition: service_healthy
-      minio-init:
+      mc:
         condition: service_completed_successfully
     environment:
       MLFLOW_AUTH_CONFIG_PATH: /basic_auth.ini

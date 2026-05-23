@@ -165,9 +165,9 @@ make alembic-generate-migration name=<название_миграции>
 
 ```bash
 # Для локальной БД:
-make alembic-run-migration-local
-# Для удаленной БД:
 make alembic-run-migration
+# Для удаленной БД:
+make alembic-run-migration-prod
 ```
 
 ### Как пользоваться приложением?

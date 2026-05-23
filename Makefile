@@ -25,7 +25,7 @@ uv-sync:
 
 # Запуск и применение миграций для локальной БД
 init-local-db:
-	make docker-up && sleep 10 && make alembic-run-migration-local
+	make docker-up && sleep 10 && make alembic-run-migration
 
 ###############
 # Alembic

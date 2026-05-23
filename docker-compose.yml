@@ -95,20 +95,5 @@ services:
 
 volumes:
   mlflow-data:
-    driver: local
-    driver_opts:
-      o: bind
-      type: none
-      device: ./data/mlflow_data
   minio_data:
-    driver: local
-    driver_opts:
-      o: bind
-      type: none
-      device: ./data/minio_data
   stocks_advisor_postgres_data:
-    driver: local
-    driver_opts:
-      o: bind
-      type: none
-      device: ./data/postgres_data

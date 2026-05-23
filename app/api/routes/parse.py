@@ -3,7 +3,7 @@ from datetime import date, datetime
 from fastapi import APIRouter
 
 from app.core.database.session import DBSession
-from app.core.processors.asset_parser import AssetParserProcessor
+from app.core.processors.stocks_parse_n_save import AssetParserProcessor
 from app.core.schemas import ParseResponse
 
 router = APIRouter(prefix='/parse', tags=['Parse'])

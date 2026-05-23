@@ -3,8 +3,9 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.clients.moex import Boards, Engines, Interval, Markets, MOEXClient, Ticker
+from app.core.clients.moex import Interval
 from app.core.database import AssetCandleRepository
+from app.core.processors.stocks_parser import StocksParser
 
 logger = logging.getLogger(__name__)
 
@@ -14,24 +15,12 @@ class AssetParserProcessor:
 
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.client = MOEXClient()
         self.repo = AssetCandleRepository(session)
 
     async def parse(self, start_dt: datetime, end_dt: datetime) -> tuple[int, int]:
         """Parse MOEX stock data for a datetime range and insert into database."""
-        tickers = list(Ticker)
-
-        logger.info(f'Parsing stocks from {start_dt} to {end_dt}')
-
-        data = await self.client.get_data(
-            tickers=tickers,
-            engine=Engines.STOCK,
-            market=Markets.SHARES,
-            board=Boards.TQBR,
-            start_date=start_dt,
-            end_date=end_dt,
-            interval=Interval.HOUR_1,
-        )
+        parser = StocksParser(start_dt, end_dt, interval=Interval.HOUR_1)
+        data = await parser.parse()
 
         saved_count = 0
         parsed_count = 0

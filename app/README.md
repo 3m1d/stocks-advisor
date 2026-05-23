@@ -72,20 +72,38 @@ flowchart TB
 
 1. Установить `uv`
 2. Выполнить `make init`
-3. Запустить приложение: `make fastapi-run-dev-local`
+3. Запустить приложение: `make fastapi-run-dev`
 
-### Разработка с удаленной БД
+### Разработка локально с подключением к production контуру
 
-1. Установить `uv`
-2. Создать в корне репозитория файл `.env` с содержимым из [.env.example](../.env.example).
-3. Сгенерировать ключи: `make generate-jwt-certs`
-4. Если БД пустая, нужно применить миграции: `make alembic-run-migration`
-5. Запустить приложение:
+#### Как подключиться к production контуру
+
+На production контуре уже запущены postgresql, s3 и mlflow, поэтому локально в докере их запускать не нужно.
+
+Нужно прокинуть на localhost порты сервисов с production сервера, например так:
 
 ```bash
-uv run fastapi dev app/web/main.py
-# или make fastapi-run-dev
+ssh -L 15432:10.1.0.4:5432 \
+  -L 5050:127.0.0.1:5050 \
+  -L 9050:127.0.0.1:9000 \
+  -L 9051:127.0.0.1:9001 \
+  username@78.31.0.108 -p 21001 -i ~/.ssh/id_ed25519
 ```
+
+После этого на localhost будут доступны эти порты:
+
+- `154321` - порт PostgreSQL
+- `5050` - MLFlow UI
+- `9050` - S3 API
+- `9051` - S3 UI
+
+#### Запуск приложения с production контуром
+
+1. Прокинуть порты на localhost.
+2. Установить `uv`
+3. Выполнить `make init-prod`
+4. Создать в корне репозитория файл `.env` с заполненными полями из [.env.example](../.env.example).
+5. Запустить приложение: `make fastapi-run-dev-prod`
 
 ### Авторизация
 
@@ -114,7 +132,7 @@ DATABASE__HOST=<postgresql IP>
 Если код запускается на другом устройстве (ноутбук, компьютер), то нужно сначала прокинуть порт БД через SSH:
 
 ```bash
-ssh -L 54321:<postgresql IP>:5432 <user>@<server IP> -p <ssh port>
+ssh -L 15432:<postgresql IP>:5432 <user>@<server IP> -p <ssh port>
 ```
 
 И указать в `.env` адрес `localhost`:

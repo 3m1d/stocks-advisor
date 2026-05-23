@@ -101,7 +101,8 @@ class Ticker(StrEnum):
     VTB = 'VTBR'
     Tatneft = 'TATN'
     NorNickel = 'GMKN'
-    TCSGroup = 'TCSG'
+    TCSGroup = 'TCSG'  # Старый тикер Т-Банка
+    TBank = 'T'  # Новый тикер Т-Банка
     USDRUBf = 'USDRUBF'
     EURRUBf = 'EURRUBF'
     CNYRUBf = 'CNYRUBF'

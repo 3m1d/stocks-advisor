@@ -92,7 +92,6 @@ COMPOSE_PROD = docker compose -f docker-compose-production.yml --env-file produc
 
 # Запустить docker контейнеры
 docker-up:
-	mkdir -p data/postgres_data data/minio_data data/mlflow_data data/mlflow
 	docker compose up -d
 
 # Остановить docker контейнеры

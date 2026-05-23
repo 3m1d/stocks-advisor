@@ -47,7 +47,7 @@ class StocksParser:
 
     async def parse_stocks(self):
         return await self.moex_client.get_data(
-            tickers=[Ticker.Gazprom, Ticker.Rosneft, Ticker.Lukoil, Ticker.Sber, Ticker.TCSGroup],
+            tickers=[Ticker.Gazprom, Ticker.Rosneft, Ticker.Lukoil, Ticker.Sber, Ticker.TCSGroup, Ticker.TBank],
             engine=Engines.STOCK,
             market=Markets.SHARES,
             board=Boards.TQBR,

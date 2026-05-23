@@ -104,11 +104,17 @@ class HistorySettings(BaseModel):
 
 
 class MlflowSettings(BaseModel):
-    """Настройки MLflow (остальное настраивается через .env файл)"""
+    """Настройки MLflow и S3 (секреты — в .env с префиксом MLFLOW__)"""
 
     tracking_uri: str = 'http://localhost:5050'
+    s3_endpoint_url: str = 'http://localhost:9000'
     artifact_root: str = 's3://mlflow-bucket/mlflow'
+    aws_access_key_id: str = 'minioadmin'
+    aws_secret_access_key: str = 'minioadmin'
+    aws_region: str = 'us-east-1'
     default_experiment: str = 'stocks-advisor'
+    tracking_username: str | None = None
+    tracking_password: str | None = None
 
 
 class Settings(BaseSettings):

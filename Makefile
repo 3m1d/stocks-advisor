@@ -92,6 +92,13 @@ docker-up:
 	mkdir -p data/postgres_data data/minio_data data/mlflow_data data/mlflow
 	docker compose up -d
 
+# Остановить docker контейнеры
+docker-down:
+	docker compose down
+
+# Перезапуск контейнеров
+docker-restart: docker-down docker-up
+
 # Запуск с production конфигом
 docker-prod-up:
 	mkdir -p data/minio_data_production
@@ -103,28 +110,23 @@ docker-prod-down:
 docker-prod-logs:
 	$(COMPOSE_PROD) logs -f minio mlflow-service
 
-# Остановить docker контейнеры
-docker-down:
-	docker compose down
-
-# Перезапуск контейнеров
-docker-restart: docker-down docker-up
-
 # Остановить docker контейнеры и удалить volumes, указанные в docker-compose.yml.
 # Полезно, если нужно очистить тестовые данные в БД.
 docker-clean-volumes:
 	docker compose down -v
 
-
 ###############
 # Utils
 ###############
 
-.PHONY: hash-password generate-jwt-certs parse-data-from-moex parse-data-from-moex-local mlflow-smoke-test
+.PHONY: hash-password generate-jwt-certs parse-data-from-moex parse-data-from-moex-local mlflow-smoke-test mlflow-smoke-test-local
 
 # Проверка подключения к MLflow
 mlflow-smoke-test:
 	$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python -m app.scripts.mlflow_smoke_test
+
+mlflow-smoke-test-local:
+	$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run python -m app.scripts.mlflow_smoke_test
 
 # Получить хэш пароля (алгоритм argon2)
 hash-password:

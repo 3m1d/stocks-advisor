@@ -18,6 +18,10 @@ logger = logging.getLogger(__name__)
 
 SITEMAP_URL = 'https://www.vedomosti.ru/sitemap_news3.xml'
 URL_DATE_PATTERN = re.compile(r'/(\w+)/news/(\d{4})/(\d{2})/(\d{2})/')
+VEDOMOSTI_HEADERS = {
+    **DEFAULT_HEADERS,
+    'Referer': 'https://www.vedomosti.ru/',
+}
 
 
 class VedomostiParser(NewsParser):
@@ -33,8 +37,8 @@ class VedomostiParser(NewsParser):
         self,
         *,
         sitemap_url: str = SITEMAP_URL,
-        max_concurrent_articles: int = 10,
-        delay_between_articles: tuple[float, float] = (0.05, 0.15),
+        max_concurrent_articles: int = 3,
+        delay_between_articles: tuple[float, float] = (0.2, 0.5),
         request_timeout: int = 20,
         retry_count: int = 5,
     ) -> None:
@@ -50,7 +54,8 @@ class VedomostiParser(NewsParser):
             return []
 
         semaphore = asyncio.Semaphore(self.max_concurrent_articles)
-        async with aiohttp.ClientSession(headers=DEFAULT_HEADERS) as session:
+        connector = aiohttp.TCPConnector(limit_per_host=self.max_concurrent_articles)
+        async with aiohttp.ClientSession(headers=VEDOMOSTI_HEADERS, connector=connector) as session:
             tasks = [self._parse_candidate(session, candidate, semaphore) for candidate in candidates]
             results = await asyncio.gather(*tasks)
         return [article for article in results if article is not None]

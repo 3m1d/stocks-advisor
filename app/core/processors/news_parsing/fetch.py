@@ -20,10 +20,14 @@ DEFAULT_USER_AGENTS = [
 
 DEFAULT_HEADERS = {
     'User-Agent': random.choice(DEFAULT_USER_AGENTS),
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'Accept-Language': 'ru,en;q=0.9',
-    'Accept-Encoding': 'gzip, deflate, br',
+    # Avoid "br" unless brotli is installed — otherwise aiohttp can fail while reading the body.
+    'Accept-Encoding': 'gzip, deflate',
     'Connection': 'keep-alive',
 }
+
+RETRYABLE_STATUS_CODES = frozenset({403, 429, 502, 503, 504})
 
 
 def _response_encoding(charset: str | None) -> str:
@@ -63,16 +67,20 @@ async def fetch_html(
                 if response.status == 200:
                     body = await response.read()
                     return decode_response_body(body, url, response.charset)
-                if response.status in (429, 503, 502):
+                if response.status in RETRYABLE_STATUS_CODES:
                     wait = 2**attempt + uniform(0.5, 1.5)
-                    logger.warning('%s while fetching %s, retry in %.1fs', response.status, url, wait)
+                    logger.warning('HTTP %s while fetching %s, retry in %.1fs', response.status, url, wait)
                     await asyncio.sleep(wait)
                     continue
                 logger.warning('HTTP %s while fetching %s', response.status, url)
                 return ''
         except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
             wait = 2**attempt + uniform(0.5, 1.5)
-            logger.warning('%s while fetching %s, retry in %.1fs', type(exc).__name__, url, wait)
+            status = getattr(exc, 'status', None)
+            if status is not None:
+                logger.warning('HTTP %s while fetching %s, retry in %.1fs', status, url, wait)
+            else:
+                logger.warning('%s while fetching %s, retry in %.1fs', type(exc).__name__, url, wait)
             await asyncio.sleep(wait)
     logger.error('Failed to fetch %s after %s attempts', url, retries)
     return ''

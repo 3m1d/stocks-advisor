@@ -1,6 +1,8 @@
 from app.core.database.db_models.asset_candle import AssetCandle
 from app.core.database.db_models.request_history import RequestHistory
 from app.core.database.repositories.asset_candle import AssetCandleRepository
+from app.core.database.db_models.news_article import NewsArticle
+from app.core.database.repositories.news_article import NewsArticleRepository
 from app.core.database.repositories.request_history import RequestHistoryRepository
 from app.core.database.session import DBSession, engine, get_db_session, get_session
 
@@ -13,4 +15,6 @@ __all__ = [
     'AssetCandleRepository',
     'RequestHistory',
     'RequestHistoryRepository',
+    'NewsArticle',
+    'NewsArticleRepository',
 ]

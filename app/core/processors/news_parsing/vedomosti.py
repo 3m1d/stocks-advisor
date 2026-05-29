@@ -5,12 +5,14 @@ from datetime import date, datetime, time
 from functools import lru_cache
 from random import uniform
 
+import aiohttp
 from bs4 import BeautifulSoup
 from trafilatura import extract, fetch_url, sitemaps
 from trafilatura.metadata import extract_metadata
 
 from app.core.database.db_models.news_article import NewsSource
 from app.core.processors.news_parsing.base import NewsParser, ParsedNewsArticle, normalize_topic
+from app.core.processors.news_parsing.fetch import DEFAULT_HEADERS, fetch_html
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +35,14 @@ class VedomostiParser(NewsParser):
         sitemap_url: str = SITEMAP_URL,
         max_concurrent_articles: int = 10,
         delay_between_articles: tuple[float, float] = (0.05, 0.15),
+        request_timeout: int = 20,
+        retry_count: int = 5,
     ) -> None:
         self.sitemap_url = sitemap_url
         self.max_concurrent_articles = max_concurrent_articles
         self.delay_between_articles = delay_between_articles
+        self.request_timeout = request_timeout
+        self.retry_count = retry_count
 
     async def parse(self, start_date: date, end_date: date) -> list[ParsedNewsArticle]:
         candidates = await asyncio.to_thread(self._collect_candidates, start_date, end_date)
@@ -44,8 +50,9 @@ class VedomostiParser(NewsParser):
             return []
 
         semaphore = asyncio.Semaphore(self.max_concurrent_articles)
-        tasks = [self._parse_candidate(candidate, semaphore) for candidate in candidates]
-        results = await asyncio.gather(*tasks)
+        async with aiohttp.ClientSession(headers=DEFAULT_HEADERS) as session:
+            tasks = [self._parse_candidate(session, candidate, semaphore) for candidate in candidates]
+            results = await asyncio.gather(*tasks)
         return [article for article in results if article is not None]
 
     def _collect_candidates(self, start_date: date, end_date: date) -> list[dict]:
@@ -77,24 +84,32 @@ class VedomostiParser(NewsParser):
     def _load_lastmod_map(self) -> dict[str, datetime]:
         return _load_lastmod_map_cached(self.sitemap_url)
 
-    async def _parse_candidate(self, candidate: dict, semaphore: asyncio.Semaphore) -> ParsedNewsArticle | None:
+    async def _parse_candidate(
+        self,
+        session: aiohttp.ClientSession,
+        candidate: dict,
+        semaphore: asyncio.Semaphore,
+    ) -> ParsedNewsArticle | None:
         async with semaphore:
             await asyncio.sleep(uniform(*self.delay_between_articles))
-            return await asyncio.to_thread(self._fetch_article, candidate)
+            return await self._fetch_article(session, candidate)
 
-    @staticmethod
-    def _fetch_article(candidate: dict) -> ParsedNewsArticle | None:
+    async def _fetch_article(
+        self,
+        session: aiohttp.ClientSession,
+        candidate: dict,
+    ) -> ParsedNewsArticle | None:
         url = candidate['url']
         try:
-            downloaded = fetch_url(url)
-            if not downloaded:
+            html = await fetch_html(session, url, retries=self.retry_count, timeout=self.request_timeout)
+            if not html:
                 return None
 
-            text = extract(downloaded)
+            text = extract(html)
             if not text:
                 return None
 
-            metadata = extract_metadata(downloaded)
+            metadata = extract_metadata(html)
             heading = metadata.title if metadata and metadata.title else None
             published_at = candidate['date']
             if metadata and metadata.date:

@@ -12,6 +12,7 @@ settings = get_settings()
 engine = create_async_engine(
     settings.database.url_async,
     echo=settings.app.debug,
+    autobegin=False,
     pool_pre_ping=True,
     pool_size=5,
     max_overflow=10,
@@ -28,24 +29,14 @@ async_session_factory = async_sessionmaker(
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency for getting database session."""
     async with async_session_factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+        yield session
 
 
 @asynccontextmanager
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """Context manager for getting database session (for daemons/scripts)."""
     async with async_session_factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+        yield session
 
 
 DBSession = Annotated[AsyncSession, Depends(get_session)]

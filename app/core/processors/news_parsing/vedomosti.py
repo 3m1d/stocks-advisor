@@ -7,7 +7,7 @@ from random import uniform
 
 import aiohttp
 from bs4 import BeautifulSoup
-from trafilatura import extract, fetch_url, sitemaps
+from trafilatura import extract, fetch_url
 from trafilatura.metadata import extract_metadata
 
 from app.core.database.db_models.news_article import NewsSource
@@ -61,17 +61,8 @@ class VedomostiParser(NewsParser):
         return [article for article in results if article is not None]
 
     def _collect_candidates(self, start_date: date, end_date: date) -> list[dict]:
-        urls = sitemaps.sitemap_search(self.sitemap_url)
-        lastmod_by_url = self._load_lastmod_map()
-
         candidates: list[dict] = []
-        for url in urls:
-            match = URL_DATE_PATTERN.search(url)
-            if not match:
-                continue
-
-            topic, year, month, day = match.groups()
-            article_date = date(int(year), int(month), int(day))
+        for url, topic, article_date, lastmod in _load_sitemap_entries_cached(self.sitemap_url):
             if article_date < start_date or article_date > end_date:
                 continue
 
@@ -79,15 +70,12 @@ class VedomostiParser(NewsParser):
                 {
                     'url': url,
                     'topic': topic,
-                    'date': lastmod_by_url.get(url) or datetime.combine(article_date, time.min),
+                    'date': lastmod or datetime.combine(article_date, time.min),
                 }
             )
 
         candidates.sort(key=lambda item: item['date'])
         return candidates
-
-    def _load_lastmod_map(self) -> dict[str, datetime]:
-        return _load_lastmod_map_cached(self.sitemap_url)
 
     async def _parse_candidate(
         self,
@@ -136,27 +124,39 @@ class VedomostiParser(NewsParser):
             return None
 
 
+SitemapEntry = tuple[str, str, date, datetime | None]
+
+
 @lru_cache(maxsize=4)
-def _load_lastmod_map_cached(sitemap_url: str) -> dict[str, datetime]:
+def _load_sitemap_entries_cached(sitemap_url: str) -> tuple[SitemapEntry, ...]:
+    """Download and parse the sitemap once per process (shared across date batches)."""
     downloaded = fetch_url(sitemap_url)
     if not downloaded:
-        return {}
+        return ()
 
     soup = BeautifulSoup(downloaded, 'xml')
-    lastmod_by_url: dict[str, datetime] = {}
+    entries: list[SitemapEntry] = []
     for url_tag in soup.find_all('url'):
         loc_tag = url_tag.find('loc')
         if loc_tag is None or not loc_tag.text:
             continue
 
         loc = loc_tag.text.strip()
+        match = URL_DATE_PATTERN.search(loc)
+        if not match:
+            continue
+
+        topic, year, month, day = match.groups()
+        article_date = date(int(year), int(month), int(day))
+
+        lastmod: datetime | None = None
         lastmod_tag = url_tag.find('lastmod')
-        if lastmod_tag is None or not lastmod_tag.text:
-            continue
+        if lastmod_tag is not None and lastmod_tag.text:
+            try:
+                lastmod = datetime.fromisoformat(lastmod_tag.text.strip().replace('Z', '+00:00'))
+            except ValueError:
+                pass
 
-        try:
-            lastmod_by_url[loc] = datetime.fromisoformat(lastmod_tag.text.strip().replace('Z', '+00:00'))
-        except ValueError:
-            continue
+        entries.append((loc, topic, article_date, lastmod))
 
-    return lastmod_by_url
+    return tuple(entries)

@@ -47,8 +47,8 @@ class NewsArticle(Base):
     )
 
     __table_args__ = (
-        Index('idx_news_article_source', 'source'),
-        Index('idx_news_article_topic', 'topic'),
+        Index('idx_news_article_source_published_at', 'source', 'published_at'),
+        Index('idx_news_article_topic_published_at', 'topic', 'published_at'),
         Index('idx_news_article_published_at', 'published_at'),
         UniqueConstraint('url', 'published_at', name='unique_url_published_at'),
     )

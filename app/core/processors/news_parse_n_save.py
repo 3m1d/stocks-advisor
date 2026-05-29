@@ -18,7 +18,7 @@ class NewsParserProcessor:
         session: AsyncSession,
         *,
         batch_size: int = 1_000,
-        date_batch_days: int = 30,
+        date_batch_days: int = 5,
     ):
         self.session = session
         self.repo = NewsArticleRepository(session)

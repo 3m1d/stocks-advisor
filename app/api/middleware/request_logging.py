@@ -148,23 +148,18 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     ) -> None:
         try:
             async with async_session_factory() as session:
-                try:
-                    repo = RequestHistoryRepository(session)
-                    await repo.create(
-                        method=request_method,
-                        endpoint=request_path,
-                        request_body=request_body if request_body else None,
-                        query_params=query_params if query_params else None,
-                        response_body=response_body if response_body else None,
-                        processing_time_ms=processing_time_ms,
-                        request_size_bytes=request_size_bytes,
-                        status_code=status_code,
-                        request_datetime=request_datetime,
-                    )
-                    await session.commit()
-                except Exception:
-                    await session.rollback()
-                    raise
+                repo = RequestHistoryRepository(session)
+                await repo.create(
+                    method=request_method,
+                    endpoint=request_path,
+                    request_body=request_body if request_body else None,
+                    query_params=query_params if query_params else None,
+                    response_body=response_body if response_body else None,
+                    processing_time_ms=processing_time_ms,
+                    request_size_bytes=request_size_bytes,
+                    status_code=status_code,
+                    request_datetime=request_datetime,
+                )
         except Exception as e:
             logger.exception(
                 'Failed to save request history to database',

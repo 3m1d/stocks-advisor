@@ -40,9 +40,10 @@ class AssetCandleRepository:
             .execution_options(insertmanyvalues_page_size=batch_size)
         )
 
-        result = await self.session.execute(stmt, payload)
-        return len(result.all())
-    
+        async with self.session.begin():
+            result = await self.session.execute(stmt, payload)
+            return len(result.all())
+
     async def get_dataframe_by_ticker(self, ticker: str, limit: int) -> pd.DataFrame:
         query = (
             select(AssetCandle)
@@ -50,9 +51,10 @@ class AssetCandleRepository:
             .order_by(desc(AssetCandle.begin))
             .limit(limit)
         )
-        
-        result = await self.session.execute(query)
-        candles = result.scalars().all()
+
+        async with self.session.begin():
+            result = await self.session.execute(query)
+            candles = result.scalars().all()
         
         if not candles:
             return pd.DataFrame()

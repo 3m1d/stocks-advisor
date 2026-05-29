@@ -22,30 +22,21 @@ async_session_factory = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
     autoflush=False,
+    autobegin=False,
 )
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency for getting database session."""
     async with async_session_factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+        yield session
 
 
 @asynccontextmanager
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """Context manager for getting database session (for daemons/scripts)."""
     async with async_session_factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+        yield session
 
 
 DBSession = Annotated[AsyncSession, Depends(get_session)]

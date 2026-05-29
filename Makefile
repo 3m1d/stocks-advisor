@@ -121,7 +121,7 @@ docker-clean-volumes:
 # Utils
 ###############
 
-.PHONY: hash-password generate-jwt-certs parse-data-from-moex-prod parse-data-from-moex
+.PHONY: hash-password generate-jwt-certs parse-data-from-moex-prod parse-data-from-moex parse-news-prod parse-news
 
 # Получить хэш пароля (алгоритм argon2)
 hash-password:
@@ -138,17 +138,45 @@ generate-jwt-certs:
 	openssl rsa -in app/certs/jwt-private.pem -outform PEM -pubout -out app/certs/jwt-public.pem
 	@echo "JWT keys generated successfully"
 
-# Парсинг данных из MOEX за последние 60 дней
+# Парсинг данных из MOEX (по умолчанию — последние 60 дней до сегодня)
+# Usage: make parse-data-from-moex-prod [start=YYYY-MM-DD] [end=YYYY-MM-DD]
 parse-data-from-moex-prod:
 	@now=$$(date +%Y-%m-%d); \
-	start_dt=$$(date -d "$$now - 60 day" +%Y-%m-%d); \
-	$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python3 -m app.daemons.parsers.asset_parser --start $$start_dt --end $$now
+	end_dt='$(end)'; \
+	start_dt='$(start)'; \
+	[ -z "$$end_dt" ] && end_dt=$$now; \
+	[ -z "$$start_dt" ] && start_dt=$$(date -d "$$end_dt - 60 day" +%Y-%m-%d); \
+	$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python3 -m app.daemons.parsers.asset_parser --start $$start_dt --end $$end_dt
 
-# Парсинг данных из MOEX в локальную БД за последние 60 дней
+# Парсинг данных из MOEX в локальную БД (по умолчанию — последние 60 дней до сегодня)
+# Usage: make parse-data-from-moex [start=YYYY-MM-DD] [end=YYYY-MM-DD]
 parse-data-from-moex:
 	@now=$$(date +%Y-%m-%d); \
-	start_dt=$$(date -d "$$now - 60 day" +%Y-%m-%d); \
-	$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run python3 -m app.daemons.parsers.asset_parser --start $$start_dt --end $$now
+	end_dt='$(end)'; \
+	start_dt='$(start)'; \
+	[ -z "$$end_dt" ] && end_dt=$$now; \
+	[ -z "$$start_dt" ] && start_dt=$$(date -d "$$end_dt - 60 day" +%Y-%m-%d); \
+	$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run python3 -m app.daemons.parsers.asset_parser --start $$start_dt --end $$end_dt
+
+# Парсинг новостей (по умолчанию — последние 60 дней до сегодня)
+# Usage: make parse-news-prod [start=YYYY-MM-DD] [end=YYYY-MM-DD]
+parse-news-prod:
+	@now=$$(date +%Y-%m-%d); \
+	end_dt='$(end)'; \
+	start_dt='$(start)'; \
+	[ -z "$$end_dt" ] && end_dt=$$now; \
+	[ -z "$$start_dt" ] && start_dt=$$(date -d "$$end_dt - 60 day" +%Y-%m-%d); \
+	$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python3 -m app.daemons.parsers.news_parser --start $$start_dt --end $$end_dt
+
+# Парсинг новостей в локальную БД (по умолчанию — последние 60 дней до сегодня)
+# Usage: make parse-news [start=YYYY-MM-DD] [end=YYYY-MM-DD]
+parse-news:
+	@now=$$(date +%Y-%m-%d); \
+	end_dt='$(end)'; \
+	start_dt='$(start)'; \
+	[ -z "$$end_dt" ] && end_dt=$$now; \
+	[ -z "$$start_dt" ] && start_dt=$$(date -d "$$end_dt - 60 day" +%Y-%m-%d); \
+	$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run python3 -m app.daemons.parsers.news_parser --start $$start_dt --end $$end_dt
 
 ###############
 # Tests

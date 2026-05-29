@@ -2,6 +2,7 @@ import asyncio
 import logging
 import re
 from datetime import date, datetime, time
+from functools import lru_cache
 from random import uniform
 
 from bs4 import BeautifulSoup
@@ -74,28 +75,7 @@ class VedomostiParser(NewsParser):
         return candidates
 
     def _load_lastmod_map(self) -> dict[str, datetime]:
-        downloaded = fetch_url(self.sitemap_url)
-        if not downloaded:
-            return {}
-
-        soup = BeautifulSoup(downloaded, 'xml')
-        lastmod_by_url: dict[str, datetime] = {}
-        for url_tag in soup.find_all('url'):
-            loc_tag = url_tag.find('loc')
-            if loc_tag is None or not loc_tag.text:
-                continue
-
-            loc = loc_tag.text.strip()
-            lastmod_tag = url_tag.find('lastmod')
-            if lastmod_tag is None or not lastmod_tag.text:
-                continue
-
-            try:
-                lastmod_by_url[loc] = datetime.fromisoformat(lastmod_tag.text.strip().replace('Z', '+00:00'))
-            except ValueError:
-                continue
-
-        return lastmod_by_url
+        return _load_lastmod_map_cached(self.sitemap_url)
 
     async def _parse_candidate(self, candidate: dict, semaphore: asyncio.Semaphore) -> ParsedNewsArticle | None:
         async with semaphore:
@@ -134,3 +114,29 @@ class VedomostiParser(NewsParser):
         except Exception as exc:
             logger.warning('Failed to parse article %s: %s', url, exc)
             return None
+
+
+@lru_cache(maxsize=4)
+def _load_lastmod_map_cached(sitemap_url: str) -> dict[str, datetime]:
+    downloaded = fetch_url(sitemap_url)
+    if not downloaded:
+        return {}
+
+    soup = BeautifulSoup(downloaded, 'xml')
+    lastmod_by_url: dict[str, datetime] = {}
+    for url_tag in soup.find_all('url'):
+        loc_tag = url_tag.find('loc')
+        if loc_tag is None or not loc_tag.text:
+            continue
+
+        loc = loc_tag.text.strip()
+        lastmod_tag = url_tag.find('lastmod')
+        if lastmod_tag is None or not lastmod_tag.text:
+            continue
+
+        try:
+            lastmod_by_url[loc] = datetime.fromisoformat(lastmod_tag.text.strip().replace('Z', '+00:00'))
+        except ValueError:
+            continue
+
+    return lastmod_by_url

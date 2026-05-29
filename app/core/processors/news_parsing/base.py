@@ -46,6 +46,20 @@ def daterange(start_date: date, end_date: date) -> list[date]:
     return [start_date + timedelta(days=i) for i in range(days + 1)]
 
 
+def date_range_batches(start_date: date, end_date: date, batch_days: int = 30) -> list[tuple[date, date]]:
+    """Split an inclusive date range into chunks of at most batch_days."""
+    if batch_days <= 0:
+        raise ValueError('batch_days must be greater than 0')
+
+    batches: list[tuple[date, date]] = []
+    current = start_date
+    while current <= end_date:
+        batch_end = min(current + timedelta(days=batch_days - 1), end_date)
+        batches.append((current, batch_end))
+        current = batch_end + timedelta(days=1)
+    return batches
+
+
 def normalize_topic(topic: str | None) -> str | None:
     """Normalize topic names"""
     if topic == 'financies':

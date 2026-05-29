@@ -82,20 +82,25 @@ class InterfaxParser(NewsParser):
             published_at = datetime.combine(day, time(hour=hour, minute=minute))
             full_url = f'https://www.interfax.ru{href}' if href.startswith('/') else href
 
-            text = await self._parse_article_text(session, full_url)
-            if not text:
+            try:
+                text = await self._parse_article_text(session, full_url)
+                if not text:
+                    continue
+
+                articles.append(
+                    ParsedNewsArticle(
+                        published_at=published_at,
+                        topic=normalize_topic(INTERFAX_TOPIC),
+                        text=text,
+                        heading=heading,
+                        url=full_url,
+                        source=self.source,
+                    )
+                )
+            except Exception as exc:
+                logger.warning('Failed to parse article %s: %s', full_url, exc)
                 continue
 
-            articles.append(
-                ParsedNewsArticle(
-                    published_at=published_at,
-                    topic=normalize_topic(INTERFAX_TOPIC),
-                    text=text,
-                    heading=heading,
-                    url=full_url,
-                    source=self.source,
-                )
-            )
             await asyncio.sleep(self.delay_between_articles)
 
         return articles

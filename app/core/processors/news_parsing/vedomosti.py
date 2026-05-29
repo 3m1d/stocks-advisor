@@ -105,28 +105,32 @@ class VedomostiParser(NewsParser):
     @staticmethod
     def _fetch_article(candidate: dict) -> ParsedNewsArticle | None:
         url = candidate['url']
-        downloaded = fetch_url(url)
-        if not downloaded:
+        try:
+            downloaded = fetch_url(url)
+            if not downloaded:
+                return None
+
+            text = extract(downloaded)
+            if not text:
+                return None
+
+            metadata = extract_metadata(downloaded)
+            heading = metadata.title if metadata and metadata.title else None
+            published_at = candidate['date']
+            if metadata and metadata.date:
+                try:
+                    published_at = datetime.fromisoformat(metadata.date)
+                except ValueError:
+                    pass
+
+            return ParsedNewsArticle(
+                published_at=published_at,
+                topic=normalize_topic(candidate['topic']),
+                text=text,
+                heading=heading,
+                url=url,
+                source=NewsSource.VEDOMOSTI,
+            )
+        except Exception as exc:
+            logger.warning('Failed to parse article %s: %s', url, exc)
             return None
-
-        text = extract(downloaded)
-        if not text:
-            return None
-
-        metadata = extract_metadata(downloaded)
-        heading = metadata.title if metadata and metadata.title else None
-        published_at = candidate['date']
-        if metadata and metadata.date:
-            try:
-                published_at = datetime.fromisoformat(metadata.date)
-            except ValueError:
-                pass
-
-        return ParsedNewsArticle(
-            published_at=published_at,
-            topic=normalize_topic(candidate['topic']),
-            text=text,
-            heading=heading,
-            url=url,
-            source=NewsSource.VEDOMOSTI,
-        )

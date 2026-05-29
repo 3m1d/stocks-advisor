@@ -92,31 +92,35 @@ class KommersantParser(NewsParser):
         topic_name: str,
         article_semaphore: asyncio.Semaphore,
     ) -> ParsedNewsArticle | None:
+        url = card.get('data-article-url')
+        if not url:
+            return None
+
         async with article_semaphore:
-            url = card.get('data-article-url')
-            heading = card.get('data-article-title', '').strip()
-            if not url:
-                return None
+            try:
+                heading = card.get('data-article-title', '').strip()
+                await asyncio.sleep(uniform(*self.delay_between_articles))
+                html = await fetch_html(session, url, retries=self.retry_count, timeout=self.request_timeout)
+                if not html:
+                    return None
 
-            await asyncio.sleep(uniform(*self.delay_between_articles))
-            html = await fetch_html(session, url, retries=self.retry_count, timeout=self.request_timeout)
-            if not html:
-                return None
+                soup = BeautifulSoup(html, 'html.parser')
+                text = self._parse_article_text(soup)
+                if not text:
+                    return None
 
-            soup = BeautifulSoup(html, 'html.parser')
-            text = self._parse_article_text(soup)
-            if not text:
+                published_at = self._extract_datetime(day, card)
+                return ParsedNewsArticle(
+                    published_at=published_at or datetime.combine(day, time.min),
+                    topic=normalize_topic(topic_name),
+                    text=text,
+                    heading=heading or None,
+                    url=url,
+                    source=self.source,
+                )
+            except Exception as exc:
+                logger.warning('Failed to parse article %s: %s', url, exc)
                 return None
-
-            published_at = self._extract_datetime(day, card)
-            return ParsedNewsArticle(
-                published_at=published_at or datetime.combine(day, time.min),
-                topic=normalize_topic(topic_name),
-                text=text,
-                heading=heading or None,
-                url=url,
-                source=self.source,
-            )
 
     @staticmethod
     def _get_article_cards(soup: BeautifulSoup) -> list[Tag]:

@@ -15,7 +15,7 @@ class NewsParserDaemon(BaseDaemon):
         self.end_dt = end_dt
 
     async def execute(self, session: AsyncSession) -> None:
-        processor = NewsParserProcessor(session)
+        processor = NewsParserProcessor()
         await processor.parse(self.start_dt, self.end_dt)
 
 

@@ -37,8 +37,8 @@ class VedomostiParser(NewsParser):
         self,
         *,
         sitemap_url: str = SITEMAP_URL,
-        max_concurrent_articles: int = 3,
-        delay_between_articles: tuple[float, float] = (0.2, 0.5),
+        max_concurrent_articles: int = 6,
+        delay_between_articles: tuple[float, float] = (0.05, 0.15),
         request_timeout: int = 20,
         retry_count: int = 5,
     ) -> None:

@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from datetime import date, datetime, timedelta
-from app.core.database.db_models.news_article import NewsSource
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.core.database import NewsArticle, NewsSource
 
 
 class ParsedNewsArticle(BaseModel):
@@ -16,6 +17,16 @@ class ParsedNewsArticle(BaseModel):
     heading: str | None = None
     url: str
     source: NewsSource
+
+    def to_db_model(self) -> NewsArticle:
+        return NewsArticle(
+            published_at=self.published_at,
+            topic=normalize_topic(self.topic) or '',
+            text=self.text,
+            heading=self.heading or '',
+            url=self.url,
+            source=self.source,
+        )
 
 
 class NewsParseResult(BaseModel):

@@ -8,7 +8,8 @@ from bs4 import BeautifulSoup
 from trafilatura import extract, fetch_url, sitemaps
 from trafilatura.metadata import extract_metadata
 
-from app.core.processors.news_parsing.base import NewsParser, NewsSource, ParsedNewsArticle, normalize_topic
+from app.core.database.db_models.news_article import NewsSource
+from app.core.processors.news_parsing.base import NewsParser, ParsedNewsArticle, normalize_topic
 
 logger = logging.getLogger(__name__)
 

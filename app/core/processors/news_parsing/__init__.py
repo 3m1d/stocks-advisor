@@ -1,10 +1,10 @@
 from datetime import date
 import logging
 
+from app.core.database.db_models.news_article import NewsSource
 from app.core.processors.news_parsing.base import (
     NewsParser,
     NewsParseResult,
-    NewsSource,
     ParsedNewsArticle,
     daterange,
     normalize_topic,

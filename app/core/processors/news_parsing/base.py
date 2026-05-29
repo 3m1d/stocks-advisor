@@ -1,14 +1,8 @@
 from abc import ABC, abstractmethod
 from datetime import date, datetime, timedelta
-from enum import Enum
+from app.core.database.db_models.news_article import NewsSource
 
 from pydantic import BaseModel, ConfigDict, Field
-
-
-class NewsSource(str, Enum):
-    INTERFAX = 'interfax'
-    KOMMERSANT = 'kommersant'
-    VEDOMOSTI = 'vedomosti'
 
 
 class ParsedNewsArticle(BaseModel):

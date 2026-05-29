@@ -6,7 +6,8 @@ from random import uniform
 import aiohttp
 from bs4 import BeautifulSoup, Tag
 
-from app.core.processors.news_parsing.base import NewsParser, NewsSource, ParsedNewsArticle, daterange, normalize_topic
+from app.core.database.db_models.news_article import NewsSource
+from app.core.processors.news_parsing.base import NewsParser, ParsedNewsArticle, daterange, normalize_topic
 from app.core.processors.news_parsing.fetch import DEFAULT_HEADERS, fetch_html
 
 logger = logging.getLogger(__name__)

@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import TIMESTAMP, BigInteger, Index, Numeric, String, UniqueConstraint, text as _text
+from sqlalchemy import TIMESTAMP, BigInteger, Index, String, Text, UniqueConstraint, text as _text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database.db_models.base import Base
@@ -22,22 +22,22 @@ class NewsArticle(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
 
     # Дата и время публикации
-    published_at: datetime
+    published_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False)
 
     # Тема
-    topic: str | None = None
+    topic: Mapped[str] = mapped_column(String(), nullable=False)
 
     # Текст статьи
-    text: str
+    text: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Заголовок статьи
-    heading: str | None = None
+    heading: Mapped[str] = mapped_column(Text, nullable=False)
 
     # URL статьи
-    url: str
+    url: Mapped[str] = mapped_column(String(), nullable=False)
 
     # Источник новости
-    source: NewsSource
+    source: Mapped[NewsSource] = mapped_column(String(), nullable=False)
 
     # Дата создания записи в БД
     created_at: Mapped[datetime | None] = mapped_column(

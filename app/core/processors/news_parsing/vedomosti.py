@@ -122,7 +122,7 @@ class VedomostiParser(NewsParser):
                 pass
 
         return ParsedNewsArticle(
-            date=published_at,
+            published_at=published_at,
             topic=normalize_topic(candidate['topic']),
             text=text,
             heading=heading,

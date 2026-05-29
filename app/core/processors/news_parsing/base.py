@@ -16,7 +16,7 @@ class ParsedNewsArticle(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    date: datetime
+    published_at: datetime
     topic: str | None = None
     text: str
     heading: str | None = None

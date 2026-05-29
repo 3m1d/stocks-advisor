@@ -87,7 +87,7 @@ class InterfaxParser(NewsParser):
 
             articles.append(
                 ParsedNewsArticle(
-                    date=published_at,
+                    published_at=published_at,
                     topic=normalize_topic(INTERFAX_TOPIC),
                     text=text,
                     heading=heading,

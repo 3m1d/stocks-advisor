@@ -109,7 +109,7 @@ class KommersantParser(NewsParser):
 
             published_at = self._extract_datetime(day, card)
             return ParsedNewsArticle(
-                date=published_at or datetime.combine(day, time.min),
+                published_at=published_at or datetime.combine(day, time.min),
                 topic=normalize_topic(topic_name),
                 text=text,
                 heading=heading or None,

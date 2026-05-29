@@ -28,18 +28,19 @@ class RequestHistoryRepository:
         request_size_bytes: int | None = None,
         request_datetime: datetime | None = None,
     ) -> RequestHistory:
-        record = RequestHistory(
-            method=method,
-            endpoint=endpoint,
-            request_body=request_body,
-            query_params=query_params,
-            response_body=response_body,
-            processing_time_ms=processing_time_ms,
-            request_size_bytes=request_size_bytes,
-            status_code=status_code,
-            request_datetime=request_datetime,
-        )
-        self.session.add(record)
+        async with self.session.begin():
+            record = RequestHistory(
+                method=method,
+                endpoint=endpoint,
+                request_body=request_body,
+                query_params=query_params,
+                response_body=response_body,
+                processing_time_ms=processing_time_ms,
+                request_size_bytes=request_size_bytes,
+                status_code=status_code,
+                request_datetime=request_datetime,
+            )
+            self.session.add(record)
         return record
 
     async def get_all(
@@ -60,8 +61,9 @@ class RequestHistoryRepository:
             q = q.where(RequestHistory.method == method)
 
         q = q.limit(limit).offset(offset)
-        result = await self.session.scalars(q)
-        return result.all()
+        async with self.session.begin():
+            result = await self.session.scalars(q)
+            return result.all()
 
     async def count(
         self,
@@ -75,8 +77,9 @@ class RequestHistoryRepository:
         if method:
             q = q.where(RequestHistory.method == method)
 
-        result = await self.session.scalar(q)
-        return result or 0
+        async with self.session.begin():
+            result = await self.session.scalar(q)
+            return result or 0
 
     async def delete_all(self) -> int:
         # Подзапрос, который удаляет записи и возвращает 1 для каждой удаленной записи
@@ -84,28 +87,30 @@ class RequestHistoryRepository:
 
         # Запрос, который считает количество удаленных записей
         q2 = select(func.count()).select_from(q)
-        count = await self.session.scalar(q2)
-        return int(count or 0)
+        async with self.session.begin():
+            count = await self.session.scalar(q2)
+            return int(count or 0)
 
     async def get_stats(self) -> StatsResponse:
-        # Averages and quantiles
-        processing_time_stats = await self.session.execute(
-            select(
-                func.avg(RequestHistory.processing_time_ms).label('mean'),
-                func.percentile_cont(0.50).within_group(asc(RequestHistory.processing_time_ms)).label('p50'),
-                func.percentile_cont(0.95).within_group(asc(RequestHistory.processing_time_ms)).label('p95'),
-                func.percentile_cont(0.99).within_group(asc(RequestHistory.processing_time_ms)).label('p99'),
+        async with self.session.begin():
+            # Averages and quantiles
+            processing_time_stats = await self.session.execute(
+                select(
+                    func.avg(RequestHistory.processing_time_ms).label('mean'),
+                    func.percentile_cont(0.50).within_group(asc(RequestHistory.processing_time_ms)).label('p50'),
+                    func.percentile_cont(0.95).within_group(asc(RequestHistory.processing_time_ms)).label('p95'),
+                    func.percentile_cont(0.99).within_group(asc(RequestHistory.processing_time_ms)).label('p99'),
+                )
             )
-        )
-        time_stats = processing_time_stats.first()
+            time_stats = processing_time_stats.first()
 
-        # Request size stats
-        request_size_stats = await self.session.execute(
-            select(
-                func.avg(RequestHistory.request_size_bytes).label('mean_bytes'),
-            ).where(RequestHistory.request_size_bytes.isnot(None))
-        )
-        size_stats = request_size_stats.first()
+            # Request size stats
+            request_size_stats = await self.session.execute(
+                select(
+                    func.avg(RequestHistory.request_size_bytes).label('mean_bytes'),
+                ).where(RequestHistory.request_size_bytes.isnot(None))
+            )
+            size_stats = request_size_stats.first()
 
         return StatsResponse(
             processing_time=ProcessingTimeStats(

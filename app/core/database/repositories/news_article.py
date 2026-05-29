@@ -21,15 +21,16 @@ class NewsArticleRepository:
         url: str,
         source: NewsSource,
     ) -> NewsArticle:
-        article = NewsArticle(
-            published_at=published_at,
-            topic=topic,
-            text=text,
-            heading=heading,
-            url=url,
-            source=source,
-        )
-        self.session.add(article)
+        async with self.session.begin():
+            article = NewsArticle(
+                published_at=published_at,
+                topic=topic,
+                text=text,
+                heading=heading,
+                url=url,
+                source=source,
+            )
+            self.session.add(article)
         return article
 
     async def bulk_add(self, articles: list[NewsArticle], batch_size: int = 1_000) -> int:
@@ -57,8 +58,9 @@ class NewsArticleRepository:
             .execution_options(insertmanyvalues_page_size=batch_size)
         )
 
-        result = await self.session.execute(stmt, payload)
-        return len(result.all())
+        async with self.session.begin():
+            result = await self.session.execute(stmt, payload)
+            return len(result.all())
 
     async def get_all(
         self,
@@ -84,5 +86,6 @@ class NewsArticleRepository:
             q = q.where(NewsArticle.topic == topic)
 
         q = q.limit(limit).offset(offset)
-        result = await self.session.scalars(q)
-        return result.all()
+        async with self.session.begin():
+            result = await self.session.scalars(q)
+            return result.all()

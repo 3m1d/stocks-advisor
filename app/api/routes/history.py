@@ -19,8 +19,9 @@ async def get_history(
 ) -> HistoryListResponse:
     """Get requests history from database"""
     repo = RequestHistoryRepository(session)
-    items = await repo.get_all(limit=limit, offset=offset, endpoint=endpoint, method=method)
-    total = await repo.count(endpoint=endpoint, method=method)
+    async with session.begin():
+        items = await repo.get_all(limit=limit, offset=offset, endpoint=endpoint, method=method)
+        total = await repo.count(endpoint=endpoint, method=method)
 
     return HistoryListResponse(
         items=[RequestHistoryResponse.model_validate(item) for item in items],
@@ -35,7 +36,6 @@ async def delete_history(session: DBSession, _: TokenPayload = Depends(require_a
     """Deletes an entire requests history"""
     repo: RequestHistoryRepository = RequestHistoryRepository(session)
     deleted_count = await repo.delete_all()
-    await session.commit()
 
     return HistoryDeleteResponse(deleted_count=deleted_count)
 

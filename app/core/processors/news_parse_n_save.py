@@ -1,11 +1,10 @@
 import logging
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import NewsArticle, NewsArticleRepository
-from app.core.processors.news_parsing import normalize_topic, parse_all_news
-from app.core.processors.news_parsing.base import ParsedNewsArticle
+from app.core.database import NewsArticleRepository
+from app.core.processors.news_parsing import parse_all_news
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +17,15 @@ class NewsParserProcessor:
         self.repo = NewsArticleRepository(session)
         self.batch_size = batch_size
 
-    async def parse(self, start_date: date, end_date: date) -> tuple[int, int]:
+    async def parse(
+        self,
+        start_date: date | datetime,
+        end_date: date | datetime,
+    ) -> tuple[int, int]:
         """Parse news for a date range and insert into database in batches."""
-        parsed = await parse_all_news(start_date, end_date)
+        start = start_date.date() if isinstance(start_date, datetime) else start_date
+        end = end_date.date() if isinstance(end_date, datetime) else end_date
+        parsed = await parse_all_news(start, end)
         parsed_count = len(parsed)
 
         saved_count = 0

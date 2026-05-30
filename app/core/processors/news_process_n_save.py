@@ -62,6 +62,7 @@ class NewsProcessAndSaveProcessor:
         *,
         chunk_size: int = 1_000,
         db_batch_size: int = 1_000,
+        use_gpu: bool = False,
         processor: NewsProcessor | None = None,
     ):
         if chunk_size <= 0:
@@ -71,7 +72,7 @@ class NewsProcessAndSaveProcessor:
 
         self.chunk_size = chunk_size
         self.db_batch_size = db_batch_size
-        self.processor = processor or NewsProcessor()
+        self.processor = processor or NewsProcessor(use_gpu=use_gpu)
 
     async def process(
         self,

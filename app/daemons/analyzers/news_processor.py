@@ -10,14 +10,22 @@ from app.daemons.base import BaseDaemon
 class NewsProcessorDaemon(BaseDaemon):
     """Daemon for processing news data."""
 
-    def __init__(self, start_dt: datetime, end_dt: datetime, source: NewsSource | None = None):
+    def __init__(
+        self,
+        start_dt: datetime,
+        end_dt: datetime,
+        source: NewsSource | None = None,
+        *,
+        use_gpu: bool = False,
+    ):
         super().__init__()
         self.start_dt = start_dt
         self.end_dt = end_dt
         self.source = source
+        self.use_gpu = use_gpu
 
     async def execute(self, session: AsyncSession) -> None:
-        processor = NewsProcessAndSaveProcessor()
+        processor = NewsProcessAndSaveProcessor(use_gpu=self.use_gpu)
         await processor.process(self.start_dt, self.end_dt, source=self.source)
 
 
@@ -44,13 +52,18 @@ def main():
         required=False,
         help='Source (interfax, kommersant, vedomosti). If omitted, all sources are processed.',
     )
+    parser.add_argument(
+        '--gpu',
+        action='store_true',
+        help='Run sentiment model on GPU (falls back to CPU if CUDA is unavailable).',
+    )
 
     args = parser.parse_args()
 
     start_dt = _parse_datetime(args.start)
     end_dt = _parse_datetime(args.end)
     source = NewsSource(args.source) if args.source else None
-    daemon = NewsProcessorDaemon(start_dt, end_dt, source)
+    daemon = NewsProcessorDaemon(start_dt, end_dt, source, use_gpu=args.gpu)
     daemon.run()
 
 

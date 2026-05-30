@@ -1,7 +1,9 @@
+import logging
 import re
 
 import nltk
 import pandas as pd
+import torch
 from natasha import Doc, MorphVocab, NewsEmbedding, NewsMorphTagger, NewsNERTagger, NewsSyntaxParser, Segmenter
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -9,9 +11,12 @@ from sklearn.metrics.pairwise import cosine_similarity
 from tqdm import tqdm
 from transformers import pipeline
 
+logger = logging.getLogger(__name__)
+
+SENTIMENT_MODEL_NAME = 'mxlcw/rubert-tiny2-russian-financial-sentiment'
+
 
 class NewsProcessor:
-    # Словарь ключевых слов для тикеров голубых фишек
     TICKER_KEYWORDS = {
         'SBER': ['сбербанк', 'сбер', 'пао сбербанк'],
         'GAZP': ['газпром', 'пао газпром', 'газовая компания'],
@@ -174,7 +179,7 @@ class NewsProcessor:
         ],
     }
 
-    def __init__(self):
+    def __init__(self, *, use_gpu: bool = False, sentiment_batch_size: int = 32):
         tqdm.pandas()
         nltk.download('stopwords')
 
@@ -196,6 +201,25 @@ class NewsProcessor:
         self.vectorizer = TfidfVectorizer(stop_words=self.russian_stopwords)
         self.sector_matrix = self.vectorizer.fit_transform(self.sector_docs_norm)
 
+        sentiment_device = self._resolve_sentiment_device(use_gpu)
+        self.sentiment_batch_size = sentiment_batch_size
+        self.sentiment_model = pipeline(
+            task='text-classification',
+            model=SENTIMENT_MODEL_NAME,
+            device=sentiment_device,
+        )
+        device_name = 'GPU' if sentiment_device >= 0 else 'CPU'
+        logger.info('Sentiment model loaded on %s (use_gpu=%s)', device_name, use_gpu)
+
+    @staticmethod
+    def _resolve_sentiment_device(use_gpu: bool) -> int:
+        if not use_gpu:
+            return -1
+        if torch.cuda.is_available():
+            return 0
+        logger.warning('GPU requested but CUDA is not available, falling back to CPU')
+        return -1
+
     def normalize_text(self, text: str) -> str:
         """Лемматизация и очистка текста от чисел и символов."""
         doc = Doc(text)
@@ -210,9 +234,6 @@ class NewsProcessor:
                 lemmas.append(token.lemma.lower())
 
         return ' '.join(lemmas)
-
-    # Инициализация модели для определения тональности
-    sentiment_model = pipeline(task='text-classification', model='mxlcw/rubert-tiny2-russian-financial-sentiment')
 
     def get_text_sentiment(self, news_texts: list[str]) -> list[str | None]:
         """
@@ -230,6 +251,7 @@ class NewsProcessor:
             news_texts,
             truncation=True,
             max_length=max_length,
+            batch_size=self.sentiment_batch_size,
         )
         return [sentiment.get('label') for sentiment in tqdm(results)]
 

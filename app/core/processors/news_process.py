@@ -14,6 +14,9 @@ from transformers import pipeline
 logger = logging.getLogger(__name__)
 
 SENTIMENT_MODEL_NAME = 'mxlcw/rubert-tiny2-russian-financial-sentiment'
+SENTIMENT_MAX_LENGTH = 512
+GPU_SENTIMENT_BATCH_SIZE = 4
+CPU_SENTIMENT_BATCH_SIZE = 32
 
 
 class NewsProcessor:
@@ -179,7 +182,13 @@ class NewsProcessor:
         ],
     }
 
-    def __init__(self, *, use_gpu: bool = False, sentiment_batch_size: int = 32):
+    def __init__(self, *, use_gpu: bool = False, sentiment_batch_size: int | None = None):
+        sentiment_device = self._resolve_sentiment_device(use_gpu)
+        if sentiment_batch_size is None:
+            sentiment_batch_size = GPU_SENTIMENT_BATCH_SIZE if sentiment_device >= 0 else CPU_SENTIMENT_BATCH_SIZE
+        self.sentiment_device = sentiment_device
+        self.sentiment_batch_size = sentiment_batch_size
+
         tqdm.pandas()
         nltk.download('stopwords')
 
@@ -201,15 +210,21 @@ class NewsProcessor:
         self.vectorizer = TfidfVectorizer(stop_words=self.russian_stopwords)
         self.sector_matrix = self.vectorizer.fit_transform(self.sector_docs_norm)
 
-        sentiment_device = self._resolve_sentiment_device(use_gpu)
-        self.sentiment_batch_size = sentiment_batch_size
         self.sentiment_model = pipeline(
             task='text-classification',
             model=SENTIMENT_MODEL_NAME,
             device=sentiment_device,
         )
+        model_max_length = getattr(self.sentiment_model.model.config, 'max_position_embeddings', SENTIMENT_MAX_LENGTH)
+        self.sentiment_max_length = min(model_max_length, SENTIMENT_MAX_LENGTH)
         device_name = 'GPU' if sentiment_device >= 0 else 'CPU'
-        logger.info('Sentiment model loaded on %s (use_gpu=%s)', device_name, use_gpu)
+        logger.info(
+            'Sentiment model loaded on %s (use_gpu=%s, batch_size=%s, max_length=%s)',
+            device_name,
+            use_gpu,
+            self.sentiment_batch_size,
+            self.sentiment_max_length,
+        )
 
     @staticmethod
     def _resolve_sentiment_device(use_gpu: bool) -> int:
@@ -246,14 +261,21 @@ class NewsProcessor:
         Returns:
             _type_: Список меток(label) тональностей для новостей
         """
-        max_length = getattr(self.sentiment_model.model.config, 'max_position_embeddings', 512)
-        results = self.sentiment_model(
-            news_texts,
-            truncation=True,
-            max_length=max_length,
-            batch_size=self.sentiment_batch_size,
-        )
-        return [sentiment.get('label') for sentiment in tqdm(results)]
+        max_length = self.sentiment_max_length
+        if self.sentiment_device >= 0:
+            torch.cuda.empty_cache()
+
+        labels: list[str | None] = []
+        for offset in tqdm(range(0, len(news_texts), self.sentiment_batch_size), desc='Sentiment'):
+            batch = news_texts[offset : offset + self.sentiment_batch_size]
+            results = self.sentiment_model(
+                batch,
+                truncation=True,
+                max_length=max_length,
+                batch_size=len(batch),
+            )
+            labels.extend(sentiment.get('label') for sentiment in results)
+        return labels
 
     def extract_organizations(self, text: str) -> list[str]:
         """Извлекает организации из текста с помощью Natasha NER."""

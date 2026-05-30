@@ -60,7 +60,7 @@ class NewsProcessAndSaveProcessor:
     def __init__(
         self,
         *,
-        chunk_size: int = 100,
+        chunk_size: int = 1_000,
         db_batch_size: int = 1_000,
         processor: NewsProcessor | None = None,
     ):
@@ -89,6 +89,32 @@ class NewsProcessAndSaveProcessor:
         async with get_db_session() as session:
             repo = NewsArticleRepository(session)
 
+            total_count = await repo.count(
+                published_from=published_from_dt,
+                published_to=published_to_dt,
+                source=source,
+            )
+            if total_count == 0:
+                logger.info(
+                    'No articles to process (source=%s, from=%s, to=%s)',
+                    source,
+                    published_from_dt,
+                    published_to_dt,
+                )
+                return 0, 0
+
+            total_chunks = (total_count + self.chunk_size - 1) // self.chunk_size
+            logger.info(
+                'Found %s articles to process in %s chunks (source=%s, from=%s, to=%s, chunk_size=%s)',
+                total_count,
+                total_chunks,
+                source,
+                published_from_dt,
+                published_to_dt,
+                self.chunk_size,
+            )
+
+            chunk_number = 0
             while True:
                 articles = await repo.get_all(
                     limit=self.chunk_size,
@@ -100,10 +126,15 @@ class NewsProcessAndSaveProcessor:
                 if not articles:
                     break
 
+                chunk_number += 1
+                processed_so_far = offset + len(articles)
                 logger.info(
-                    'Processing chunk at offset %s: %s articles (source=%s, from=%s, to=%s)',
-                    offset,
+                    'Processing chunk %s/%s: %s articles (%s/%s total, source=%s, from=%s, to=%s)',
+                    chunk_number,
+                    total_chunks,
                     len(articles),
+                    processed_so_far,
+                    total_count,
                     source,
                     published_from_dt,
                     published_to_dt,
@@ -123,10 +154,13 @@ class NewsProcessAndSaveProcessor:
                 offset += len(articles)
 
                 logger.info(
-                    'Chunk at offset %s: processed %s, saved %s enrichments',
-                    offset - len(articles),
+                    'Chunk %s/%s done: processed %s, saved %s enrichments (%s/%s total)',
+                    chunk_number,
+                    total_chunks,
                     len(articles),
                     batch_saved,
+                    processed_count,
+                    total_count,
                 )
 
                 if len(articles) < self.chunk_size:

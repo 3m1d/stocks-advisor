@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from datetime import datetime
 
 import pandas as pd
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -165,6 +165,27 @@ class NewsArticleRepository:
         async with self.session.begin():
             result = await self.session.scalars(q)
             return result.all()
+
+    async def count(
+        self,
+        published_from: datetime | None = None,
+        published_to: datetime | None = None,
+        source: NewsSource | None = None,
+        topic: str | None = None,
+    ) -> int:
+        q = select(func.count()).select_from(NewsArticle)
+
+        if published_from is not None:
+            q = q.where(NewsArticle.published_at >= published_from)
+        if published_to is not None:
+            q = q.where(NewsArticle.published_at <= published_to)
+        if source is not None:
+            q = q.where(NewsArticle.source == source)
+        if topic is not None:
+            q = q.where(NewsArticle.topic == topic)
+
+        async with self.session.begin():
+            return await self.session.scalar(q) or 0
 
     async def get_all_as_dataframe(
         self,

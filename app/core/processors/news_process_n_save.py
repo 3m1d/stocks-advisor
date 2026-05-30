@@ -61,7 +61,7 @@ class NewsProcessAndSaveProcessor:
     def __init__(
         self,
         *,
-        chunk_size: int = 1_000,
+        chunk_size: int = 5_000,
         db_batch_size: int = 1_000,
         use_gpu: bool = False,
         processor: NewsProcessor | None = None,
@@ -147,7 +147,9 @@ class NewsProcessAndSaveProcessor:
                     with log_timed(f'NLP ({len(articles)} articles)', logger=logger, count=len(articles)) as nlp:
                         enriched_df = await asyncio.to_thread(self.processor.process_news, df)
 
-                    with log_timed(f'DB save ({len(articles)} articles)', logger=logger, count=len(articles)) as db_save:
+                    with log_timed(
+                        f'DB save ({len(articles)} articles)', logger=logger, count=len(articles)
+                    ) as db_save:
                         enrichments = _dataframe_to_enrichments(enriched_df)
                         batch_saved = await _save_enrichments(
                             session,
@@ -160,8 +162,7 @@ class NewsProcessAndSaveProcessor:
                 offset += len(articles)
 
                 logger.info(
-                    'Chunk %s/%s done: processed %s, saved %s enrichments (%s/%s total) in %s '
-                    '(nlp=%s, db_save=%s)',
+                    'Chunk %s/%s done: processed %s, saved %s enrichments (%s/%s total) in %s (nlp=%s, db_save=%s)',
                     chunk_number,
                     total_chunks,
                     len(articles),

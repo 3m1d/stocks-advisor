@@ -225,7 +225,13 @@ class NewsProcessor:
         Returns:
             _type_: Список меток(label) тональностей для новостей
         """
-        return [sentiment.get('label') for sentiment in tqdm(self.sentiment_model(news_texts))]
+        max_length = getattr(self.sentiment_model.model.config, 'max_position_embeddings', 512)
+        results = self.sentiment_model(
+            news_texts,
+            truncation=True,
+            max_length=max_length,
+        )
+        return [sentiment.get('label') for sentiment in tqdm(results)]
 
     def extract_organizations(self, text: str) -> list[str]:
         """Извлекает организации из текста с помощью Natasha NER."""

@@ -15,8 +15,9 @@ logger = logging.getLogger(__name__)
 
 SENTIMENT_MODEL_NAME = 'mxlcw/rubert-tiny2-russian-financial-sentiment'
 SENTIMENT_MAX_LENGTH = 512
-GPU_SENTIMENT_BATCH_SIZE = 4
+GPU_SENTIMENT_BATCH_SIZE = 16
 CPU_SENTIMENT_BATCH_SIZE = 32
+SECTOR_SIMILARITY_THRESHOLD = 0.1
 
 
 class NewsProcessor:
@@ -182,14 +183,22 @@ class NewsProcessor:
         ],
     }
 
-    def __init__(self, *, use_gpu: bool = False, sentiment_batch_size: int | None = None):
+    def __init__(
+        self,
+        *,
+        use_gpu: bool = False,
+        sentiment_batch_size: int | None = None,
+    ):
         sentiment_device = self._resolve_sentiment_device(use_gpu)
         if sentiment_batch_size is None:
             sentiment_batch_size = GPU_SENTIMENT_BATCH_SIZE if sentiment_device >= 0 else CPU_SENTIMENT_BATCH_SIZE
         self.sentiment_device = sentiment_device
         self.sentiment_batch_size = sentiment_batch_size
 
-        tqdm.pandas()
+        self._org_to_ticker = {
+            keyword.lower(): ticker for ticker, keywords in self.TICKER_KEYWORDS.items() for keyword in keywords
+        }
+
         nltk.download('stopwords')
 
         # Инициализация моделей Natasha
@@ -215,7 +224,8 @@ class NewsProcessor:
             model=SENTIMENT_MODEL_NAME,
             device=sentiment_device,
         )
-        model_max_length = getattr(self.sentiment_model.model.config, 'max_position_embeddings', SENTIMENT_MAX_LENGTH)
+        model_config = self.sentiment_model.model.config
+        model_max_length = getattr(model_config, 'max_position_embeddings', SENTIMENT_MAX_LENGTH)
         self.sentiment_max_length = min(model_max_length, SENTIMENT_MAX_LENGTH)
         device_name = 'GPU' if sentiment_device >= 0 else 'CPU'
         logger.info(
@@ -235,20 +245,59 @@ class NewsProcessor:
         logger.warning('GPU requested but CUDA is not available, falling back to CPU')
         return -1
 
+    @staticmethod
+    def _lemmatize_doc(doc: Doc, morph_vocab: MorphVocab) -> str:
+        if not doc.tokens:
+            return ''
+        lemmas = []
+        for token in doc.tokens:
+            token.lemmatize(morph_vocab)
+            if re.match(r'^[а-яА-Яa-zA-Z]+$', token.text):
+                lemmas.append(token.lemma.lower())
+        return ' '.join(lemmas)
+
     def normalize_text(self, text: str) -> str:
         """Лемматизация и очистка текста от чисел и символов."""
         doc = Doc(text)
         doc.segment(self.segmenter)
         doc.tag_morph(self.morph_tagger)
-        if not doc.tokens:
-            return ''
-        lemmas = []
-        for token in doc.tokens:
-            token.lemmatize(self.morph_vocab)
-            if re.match(r'^[а-яА-Яa-zA-Z]+$', token.text):  # исключаем числа и знаки
-                lemmas.append(token.lemma.lower())
+        return self._lemmatize_doc(doc, self.morph_vocab)
 
-        return ' '.join(lemmas)
+    def enrich_text(self, text: str) -> tuple[list[str], str]:
+        """Извлекает тикеры и нормализованный текст за один проход модели Natasha."""
+        doc = Doc(text)
+        doc.segment(self.segmenter)
+        doc.tag_morph(self.morph_tagger)
+        text_norm = self._lemmatize_doc(doc, self.morph_vocab)
+
+        doc.parse_syntax(self.syntax_parser)
+        doc.tag_ner(self.ner_tagger)
+        orgs: list[str] = []
+        if doc.spans:
+            for span in doc.spans:
+                if span.type == 'ORG':
+                    span.normalize(self.morph_vocab)
+                    orgs.append(span.normal.lower())
+
+        return self.extract_tickers(orgs), text_norm
+
+    def enrich_texts(self, texts: list[str]) -> tuple[list[list[str]], list[str]]:
+        results = [self.enrich_text(text) for text in tqdm(texts, desc='Enrichment')]
+        tickers, text_norms = zip(*results)
+        return list(tickers), list(text_norms)
+
+    def detect_sectors_batch(self, text_norms: list[str]) -> list[str | None]:
+        if not text_norms:
+            return []
+        text_vectors = self.vectorizer.transform(text_norms)
+        sims = cosine_similarity(text_vectors, self.sector_matrix)
+        sectors: list[str | None] = []
+        for row in sims:
+            if row.max() < SECTOR_SIMILARITY_THRESHOLD:
+                sectors.append(None)
+            else:
+                sectors.append(self.sector_names[row.argmax()])
+        return sectors
 
     def get_text_sentiment(self, news_texts: list[str]) -> list[str | None]:
         """
@@ -261,45 +310,24 @@ class NewsProcessor:
         Returns:
             _type_: Список меток(label) тональностей для новостей
         """
-        max_length = self.sentiment_max_length
         if self.sentiment_device >= 0:
             torch.cuda.empty_cache()
 
-        labels: list[str | None] = []
-        for offset in tqdm(range(0, len(news_texts), self.sentiment_batch_size), desc='Sentiment'):
-            batch = news_texts[offset : offset + self.sentiment_batch_size]
-            results = self.sentiment_model(
-                batch,
-                truncation=True,
-                max_length=max_length,
-                batch_size=len(batch),
-            )
-            labels.extend(sentiment.get('label') for sentiment in results)
-        return labels
-
-    def extract_organizations(self, text: str) -> list[str]:
-        """Извлекает организации из текста с помощью Natasha NER."""
-        doc = Doc(text)
-        doc.segment(self.segmenter)
-        doc.parse_syntax(self.syntax_parser)
-        doc.tag_morph(self.morph_tagger)
-        doc.tag_ner(self.ner_tagger)
-        found_spans = []
-        if not doc.spans:
-            return []
-        for span in doc.spans:
-            if span.type == 'ORG':
-                span.normalize(self.morph_vocab)
-                found_spans.append(span.normal.lower())
-        return found_spans
+        results = self.sentiment_model(
+            news_texts,
+            truncation=True,
+            max_length=self.sentiment_max_length,
+            batch_size=self.sentiment_batch_size,
+        )
+        return [sentiment.get('label') for sentiment in results]
 
     def extract_tickers(self, orgs: list[str]) -> list[str]:
         """Определяет тикеры по извлечённым названиям компаний."""
         tickers = set()
         for org in orgs:
-            for ticker, keywords in self.TICKER_KEYWORDS.items():
-                if any(org == kw.lower() for kw in keywords):
-                    tickers.add(ticker)
+            ticker = self._org_to_ticker.get(org)
+            if ticker:
+                tickers.add(ticker)
         return list(tickers)
 
     def detect_sector_tfidf(self, text: str) -> str | None:
@@ -307,39 +335,29 @@ class NewsProcessor:
         Определяет сектор новости по косинусному сходству с TF-IDF.
         Если нет явного сходства - возвращает None
         """
-        text_norm = self.normalize_text(text)
-        text_vector = self.vectorizer.transform([text_norm])
-        sims = cosine_similarity(text_vector, self.sector_matrix)[0]
-        if sims.max() < 0.1:
-            return None
-        return self.sector_names[sims.argmax()]
+        return self.detect_sectors_batch([self.normalize_text(text)])[0]
 
     def get_tickers(self, text: str) -> list[str]:
-        """Верхнеуровневая функция для поиска тикеров
-
-        Args:
-            text (str): текст новости
-
-        Returns:
-            list[str]: список найденных тикеров
-        """
-        orgs = self.extract_organizations(text)
-        return self.extract_tickers(orgs)
+        """Верхнеуровневая функция для поиска тикеров."""
+        return self.enrich_text(text)[0]
 
     def process_news(
         self,
         df: pd.DataFrame,
     ):
-        print('Ищем тикеры в новостях...')
-        df['tickers'] = df['text'].progress_apply(self.get_tickers)
+        texts = df['text'].tolist()
+
+        print('Извлекаем тикеры и готовим тексты для секторов...')
+        tickers, text_norms = self.enrich_texts(texts)
+        df['tickers'] = tickers
         print('DONE!\n')
 
         print('Определяем сектор влияния новостей...')
-        df['sector'] = df['text'].progress_apply(self.detect_sector_tfidf)
+        df['sector'] = self.detect_sectors_batch(text_norms)
         print('DONE!\n')
 
         print('Определяем тональность новостей...')
-        df['text_sentiment'] = self.get_text_sentiment(df.text.to_list())
+        df['text_sentiment'] = self.get_text_sentiment(texts)
         print('DONE!\n')
 
         print('Обработка завершена')

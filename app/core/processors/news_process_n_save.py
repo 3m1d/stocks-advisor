@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import time
 from datetime import date, datetime, time as dt_time
 
 import pandas as pd
@@ -10,15 +9,9 @@ from app.core.database import NewsArticleRepository, get_db_session, news_articl
 from app.core.database.db_models.news_article import NewsSource
 from app.core.database.db_models.news_article_enrichment import NewsArticleEnrichment, NewsSentiment
 from app.core.processors.news_process import NewsProcessor
+from app.utils.timing import format_duration, log_timed, timed
 
 logger = logging.getLogger(__name__)
-
-
-def _format_duration(seconds: float) -> str:
-    if seconds < 60:
-        return f'{seconds:.1f}s'
-    minutes, secs = divmod(seconds, 60)
-    return f'{int(minutes)}m {secs:.0f}s'
 
 
 def _to_datetime(value: datetime | date | None, *, end_of_day: bool = False) -> datetime | None:
@@ -150,21 +143,17 @@ class NewsProcessAndSaveProcessor:
                 )
 
                 df = news_articles_to_dataframe(articles)
-                chunk_start = time.perf_counter()
+                with timed() as chunk:
+                    with log_timed(f'NLP ({len(articles)} articles)', logger=logger, count=len(articles)) as nlp:
+                        enriched_df = await asyncio.to_thread(self.processor.process_news, df)
 
-                process_start = time.perf_counter()
-                enriched_df = await asyncio.to_thread(self.processor.process_news, df)
-                process_sec = time.perf_counter() - process_start
-
-                save_start = time.perf_counter()
-                enrichments = _dataframe_to_enrichments(enriched_df)
-                batch_saved = await _save_enrichments(
-                    session,
-                    enrichments,
-                    db_batch_size=self.db_batch_size,
-                )
-                save_sec = time.perf_counter() - save_start
-                chunk_sec = time.perf_counter() - chunk_start
+                    with log_timed(f'DB save ({len(articles)} articles)', logger=logger, count=len(articles)) as db_save:
+                        enrichments = _dataframe_to_enrichments(enriched_df)
+                        batch_saved = await _save_enrichments(
+                            session,
+                            enrichments,
+                            db_batch_size=self.db_batch_size,
+                        )
 
                 processed_count += len(articles)
                 saved_count += batch_saved
@@ -179,9 +168,9 @@ class NewsProcessAndSaveProcessor:
                     batch_saved,
                     processed_count,
                     total_count,
-                    _format_duration(chunk_sec),
-                    _format_duration(process_sec),
-                    _format_duration(save_sec),
+                    format_duration(chunk.seconds),
+                    format_duration(nlp.seconds),
+                    format_duration(db_save.seconds),
                 )
 
                 if len(articles) < self.chunk_size:

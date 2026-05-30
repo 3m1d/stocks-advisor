@@ -1,6 +1,7 @@
 import asyncio
 import logging
-from datetime import date, datetime, time
+import time
+from datetime import date, datetime, time as dt_time
 
 import pandas as pd
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,14 +14,21 @@ from app.core.processors.news_process import NewsProcessor
 logger = logging.getLogger(__name__)
 
 
+def _format_duration(seconds: float) -> str:
+    if seconds < 60:
+        return f'{seconds:.1f}s'
+    minutes, secs = divmod(seconds, 60)
+    return f'{int(minutes)}m {secs:.0f}s'
+
+
 def _to_datetime(value: datetime | date | None, *, end_of_day: bool = False) -> datetime | None:
     if value is None:
         return None
     if isinstance(value, datetime):
         return value
     if end_of_day:
-        return datetime.combine(value, time.max)
-    return datetime.combine(value, time.min)
+        return datetime.combine(value, dt_time.max)
+    return datetime.combine(value, dt_time.min)
 
 
 def _dataframe_to_enrichments(df: pd.DataFrame) -> list[NewsArticleEnrichment]:
@@ -142,26 +150,38 @@ class NewsProcessAndSaveProcessor:
                 )
 
                 df = news_articles_to_dataframe(articles)
+                chunk_start = time.perf_counter()
+
+                process_start = time.perf_counter()
                 enriched_df = await asyncio.to_thread(self.processor.process_news, df)
+                process_sec = time.perf_counter() - process_start
+
+                save_start = time.perf_counter()
                 enrichments = _dataframe_to_enrichments(enriched_df)
                 batch_saved = await _save_enrichments(
                     session,
                     enrichments,
                     db_batch_size=self.db_batch_size,
                 )
+                save_sec = time.perf_counter() - save_start
+                chunk_sec = time.perf_counter() - chunk_start
 
                 processed_count += len(articles)
                 saved_count += batch_saved
                 offset += len(articles)
 
                 logger.info(
-                    'Chunk %s/%s done: processed %s, saved %s enrichments (%s/%s total)',
+                    'Chunk %s/%s done: processed %s, saved %s enrichments (%s/%s total) in %s '
+                    '(nlp=%s, db_save=%s)',
                     chunk_number,
                     total_chunks,
                     len(articles),
                     batch_saved,
                     processed_count,
                     total_count,
+                    _format_duration(chunk_sec),
+                    _format_duration(process_sec),
+                    _format_duration(save_sec),
                 )
 
                 if len(articles) < self.chunk_size:

@@ -1,5 +1,6 @@
 import logging
 import re
+import time
 
 import nltk
 import pandas as pd
@@ -18,6 +19,13 @@ SENTIMENT_MAX_LENGTH = 512
 GPU_SENTIMENT_BATCH_SIZE = 16
 CPU_SENTIMENT_BATCH_SIZE = 32
 SECTOR_SIMILARITY_THRESHOLD = 0.1
+
+
+def _format_duration(seconds: float) -> str:
+    if seconds < 60:
+        return f'{seconds:.1f}s'
+    minutes, secs = divmod(seconds, 60)
+    return f'{int(minutes)}m {secs:.0f}s'
 
 
 class NewsProcessor:
@@ -346,19 +354,50 @@ class NewsProcessor:
         df: pd.DataFrame,
     ):
         texts = df['text'].tolist()
+        n = len(texts)
+        total_start = time.perf_counter()
 
-        print('Извлекаем тикеры и готовим тексты для секторов...')
+        logger.info('Enrichment started: %s articles', n)
+        enrichment_start = time.perf_counter()
         tickers, text_norms = self.enrich_texts(texts)
+        enrichment_sec = time.perf_counter() - enrichment_start
         df['tickers'] = tickers
-        print('DONE!\n')
+        logger.info(
+            'Enrichment done: %s articles in %s (%.2f it/s)',
+            n,
+            _format_duration(enrichment_sec),
+            n / enrichment_sec if enrichment_sec else 0,
+        )
 
-        print('Определяем сектор влияния новостей...')
+        logger.info('Sector detection started: %s articles', n)
+        sector_start = time.perf_counter()
         df['sector'] = self.detect_sectors_batch(text_norms)
-        print('DONE!\n')
+        sector_sec = time.perf_counter() - sector_start
+        logger.info(
+            'Sector detection done: %s articles in %s (%.2f it/s)',
+            n,
+            _format_duration(sector_sec),
+            n / sector_sec if sector_sec else 0,
+        )
 
-        print('Определяем тональность новостей...')
+        logger.info('Sentiment analysis started: %s articles (batch_size=%s)', n, self.sentiment_batch_size)
+        sentiment_start = time.perf_counter()
         df['text_sentiment'] = self.get_text_sentiment(texts)
-        print('DONE!\n')
+        sentiment_sec = time.perf_counter() - sentiment_start
+        logger.info(
+            'Sentiment analysis done: %s articles in %s (%.2f it/s)',
+            n,
+            _format_duration(sentiment_sec),
+            n / sentiment_sec if sentiment_sec else 0,
+        )
 
-        print('Обработка завершена')
+        total_sec = time.perf_counter() - total_start
+        logger.info(
+            'Processing done: %s articles in %s (enrichment=%s, sectors=%s, sentiment=%s)',
+            n,
+            _format_duration(total_sec),
+            _format_duration(enrichment_sec),
+            _format_duration(sector_sec),
+            _format_duration(sentiment_sec),
+        )
         return df

@@ -121,7 +121,7 @@ docker-clean-volumes:
 # Utils
 ###############
 
-.PHONY: hash-password generate-jwt-certs parse-data-from-moex-prod parse-data-from-moex parse-news-prod parse-news
+.PHONY: hash-password generate-jwt-certs parse-data-from-moex-prod parse-data-from-moex parse-news-prod parse-news process-news-prod process-news
 
 # Получить хэш пароля (алгоритм argon2)
 hash-password:
@@ -177,6 +177,34 @@ parse-news:
 	[ -z "$$end_dt" ] && end_dt=$$now; \
 	[ -z "$$start_dt" ] && start_dt=$$(date -d "$$end_dt - 60 day" +%Y-%m-%d); \
 	$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run python3 -m app.daemons.parsers.news_parser --start $$start_dt --end $$end_dt
+
+# Обработка новостей: тикеры, сектор, тональность (по умолчанию — последние 60 дней до сегодня)
+# Usage: make process-news-prod [source=kommersant] [start=YYYY-MM-DD] [end=YYYY-MM-DD]
+process-news-prod:
+	@now=$$(date +%Y-%m-%d); \
+	end_dt='$(end)'; \
+	start_dt='$(start)'; \
+	[ -z "$$end_dt" ] && end_dt=$$now; \
+	[ -z "$$start_dt" ] && start_dt=$$(date -d "$$end_dt - 60 day" +%Y-%m-%d); \
+	if [ -n "$(source)" ]; then \
+		$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python3 -m app.daemons.analyzers.news_processor --start $$start_dt --end $$end_dt --source $(source); \
+	else \
+		$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python3 -m app.daemons.analyzers.news_processor --start $$start_dt --end $$end_dt; \
+	fi
+
+# Обработка новостей в локальной БД (по умолчанию — последние 60 дней до сегодня)
+# Usage: make process-news [source=kommersant] [start=YYYY-MM-DD] [end=YYYY-MM-DD]
+process-news:
+	@now=$$(date +%Y-%m-%d); \
+	end_dt='$(end)'; \
+	start_dt='$(start)'; \
+	[ -z "$$end_dt" ] && end_dt=$$now; \
+	[ -z "$$start_dt" ] && start_dt=$$(date -d "$$end_dt - 60 day" +%Y-%m-%d); \
+	if [ -n "$(source)" ]; then \
+		$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run python3 -m app.daemons.analyzers.news_processor --start $$start_dt --end $$end_dt --source $(source); \
+	else \
+		$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run python3 -m app.daemons.analyzers.news_processor --start $$start_dt --end $$end_dt; \
+	fi
 
 ###############
 # Tests

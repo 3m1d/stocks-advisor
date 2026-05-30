@@ -10,7 +10,7 @@ from app.daemons.base import BaseDaemon
 class NewsProcessorDaemon(BaseDaemon):
     """Daemon for processing news data."""
 
-    def __init__(self, start_dt: datetime, end_dt: datetime, source: NewsSource):
+    def __init__(self, start_dt: datetime, end_dt: datetime, source: NewsSource | None = None):
         super().__init__()
         self.start_dt = start_dt
         self.end_dt = end_dt
@@ -32,19 +32,24 @@ def _parse_datetime(value: str) -> datetime:
 
 
 def main():
-    """CLI entrypoint for news parser daemon."""
+    """CLI entrypoint for news processor daemon."""
     import argparse
 
-    parser = argparse.ArgumentParser(description='Parse news data')
+    parser = argparse.ArgumentParser(description='Process news data')
     parser.add_argument('--start', type=str, required=True, help='Start datetime (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)')
     parser.add_argument('--end', type=str, required=True, help='End datetime (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)')
-    parser.add_argument('--source', type=str, required=True, help='Source (interfax, kommersant, vedomosti)')
+    parser.add_argument(
+        '--source',
+        type=str,
+        required=False,
+        help='Source (interfax, kommersant, vedomosti). If omitted, all sources are processed.',
+    )
 
     args = parser.parse_args()
 
     start_dt = _parse_datetime(args.start)
     end_dt = _parse_datetime(args.end)
-    source = NewsSource(args.source)
+    source = NewsSource(args.source) if args.source else None
     daemon = NewsProcessorDaemon(start_dt, end_dt, source)
     daemon.run()
 

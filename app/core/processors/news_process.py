@@ -212,7 +212,7 @@ class NewsProcessor:
         return ' '.join(lemmas)
 
     # Инициализация модели для определения тональности
-    sentiment_model = pipeline(task='text-classification', model='mxlcw/rubert-tiny2-russian-economic-sentiment')
+    sentiment_model = pipeline(task='text-classification', model='mxlcw/rubert-tiny2-russian-financial-sentiment')
 
     def get_text_sentiment(self, news_texts: list[str]) -> list[str | None]:
         """

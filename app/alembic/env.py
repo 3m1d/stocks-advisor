@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.config.settings import get_settings
 from app.core.database.db_models.base import Base
-from app.core.database.db_models import asset_candle, request_history  # noqa: F401
+from app.core.database.db_models import asset_candle, news_article, news_article_enrichment, request_history  # noqa: F401
 
 
 # this is the Alembic Config object, which provides

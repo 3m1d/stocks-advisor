@@ -1,10 +1,16 @@
+from __future__ import annotations
+
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import TIMESTAMP, BigInteger, Index, String, Text, UniqueConstraint, text as _text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database.db_models.base import Base
+
+if TYPE_CHECKING:
+    from app.core.database.db_models.news_article_enrichment import NewsArticleEnrichment
 
 
 class NewsSource(str, Enum):
@@ -44,6 +50,11 @@ class NewsArticle(Base):
         TIMESTAMP,
         nullable=True,
         server_default=_text('CURRENT_TIMESTAMP'),
+    )
+
+    enrichments: Mapped[list[NewsArticleEnrichment]] = relationship(
+        back_populates='article',
+        cascade='all, delete-orphan',
     )
 
     __table_args__ = (

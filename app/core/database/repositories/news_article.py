@@ -5,10 +5,13 @@ import pandas as pd
 from sqlalchemy import desc, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.core.database.db_models.news_article import NewsArticle, NewsSource
+from app.core.database.db_models.news_article_enrichment import NewsArticleEnrichment, NewsSentiment
 
 NEWS_ARTICLE_DATAFRAME_COLUMNS = [
+    'id',
     'published_at',
     'topic',
     'text',
@@ -29,6 +32,7 @@ def news_articles_to_dataframe(articles: Sequence[NewsArticle]) -> pd.DataFrame:
 
     rows = [
         {
+            'id': article.id,
             'published_at': article.published_at,
             'topic': _normalize_topic(article.topic),
             'text': article.text,
@@ -42,6 +46,42 @@ def news_articles_to_dataframe(articles: Sequence[NewsArticle]) -> pd.DataFrame:
     df = pd.DataFrame(rows, columns=NEWS_ARTICLE_DATAFRAME_COLUMNS)
     df['published_at'] = pd.to_datetime(df['published_at'], errors='coerce')
     return df.sort_values(by='published_at', ascending=True).reset_index(drop=True)
+
+
+NEWS_ARTICLE_ENRICHMENT_DATAFRAME_COLUMNS = [
+    'id',
+    'news_article_id',
+    'published_at',
+    'tickers',
+    'sector',
+    'sentiment',
+]
+
+
+def news_article_enrichments_to_dataframe(
+    enrichments: Sequence[NewsArticleEnrichment],
+) -> pd.DataFrame:
+    """Convert NewsArticleEnrichment rows to a DataFrame."""
+    if not enrichments:
+        return pd.DataFrame(columns=NEWS_ARTICLE_ENRICHMENT_DATAFRAME_COLUMNS)
+
+    rows = [
+        {
+            'id': enrichment.id,
+            'news_article_id': enrichment.news_article_id,
+            'published_at': enrichment.article.published_at,
+            'tickers': enrichment.tickers,
+            'sector': enrichment.sector,
+            'sentiment': (
+                enrichment.sentiment.value if isinstance(enrichment.sentiment, NewsSentiment) else enrichment.sentiment
+            ),
+        }
+        for enrichment in enrichments
+    ]
+
+    df = pd.DataFrame(rows, columns=NEWS_ARTICLE_ENRICHMENT_DATAFRAME_COLUMNS)
+    df['published_at'] = pd.to_datetime(df['published_at'], errors='coerce')
+    return df.sort_values(by=['published_at', 'id'], ascending=True).reset_index(drop=True)
 
 
 class NewsArticleRepository:
@@ -144,3 +184,92 @@ class NewsArticleRepository:
             topic=topic,
         )
         return news_articles_to_dataframe(articles)
+
+    async def bulk_create_enrichments(
+        self,
+        enrichments: list[NewsArticleEnrichment],
+        batch_size: int = 1_000,
+    ) -> int:
+        if not enrichments:
+            return 0
+        if batch_size <= 0:
+            raise ValueError('batch_size must be greater than 0')
+
+        payload = [
+            {
+                'news_article_id': enrichment.news_article_id,
+                'tickers': enrichment.tickers,
+                'sector': enrichment.sector,
+                'sentiment': (
+                    enrichment.sentiment.value
+                    if isinstance(enrichment.sentiment, NewsSentiment)
+                    else enrichment.sentiment
+                ),
+            }
+            for enrichment in enrichments
+        ]
+
+        stmt = (
+            insert(NewsArticleEnrichment)
+            .returning(NewsArticleEnrichment.id)
+            .execution_options(insertmanyvalues_page_size=batch_size)
+        )
+
+        async with self.session.begin():
+            result = await self.session.execute(stmt, payload)
+            return len(result.all())
+
+    async def get_all_enrichments(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        news_article_id: int | None = None,
+    ) -> list[NewsArticleEnrichment]:
+        q = select(NewsArticleEnrichment).options(joinedload(NewsArticleEnrichment.article))
+
+        if news_article_id is not None:
+            q = q.where(NewsArticleEnrichment.news_article_id == news_article_id)
+
+        q = q.distinct(NewsArticleEnrichment.news_article_id).order_by(
+            NewsArticleEnrichment.news_article_id,
+            desc(NewsArticleEnrichment.created_at),
+            desc(NewsArticleEnrichment.id),
+        )
+
+        q = q.limit(limit).offset(offset)
+        async with self.session.begin():
+            result = await self.session.scalars(q)
+            return list(result.all())
+
+    async def get_all_enrichments_as_dataframe(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        news_article_id: int | None = None,
+    ) -> pd.DataFrame:
+        enrichments = await self.get_all_enrichments(
+            limit=limit,
+            offset=offset,
+            news_article_id=news_article_id,
+        )
+        return news_article_enrichments_to_dataframe(enrichments)
+
+    async def get_latest_enrichment(self, news_article_id: int) -> NewsArticleEnrichment | None:
+        q = (
+            select(NewsArticleEnrichment)
+            .where(NewsArticleEnrichment.news_article_id == news_article_id)
+            .order_by(desc(NewsArticleEnrichment.created_at), desc(NewsArticleEnrichment.id))
+            .limit(1)
+        )
+        async with self.session.begin():
+            return await self.session.scalar(q)
+
+    async def get_enrichments(self, news_article_id: int) -> list[NewsArticleEnrichment]:
+        q = (
+            select(NewsArticleEnrichment)
+            .where(NewsArticleEnrichment.news_article_id == news_article_id)
+            .order_by(desc(NewsArticleEnrichment.created_at), desc(NewsArticleEnrichment.id))
+        )
+        async with self.session.begin():
+            result = await self.session.scalars(q)
+            return list(result.all())

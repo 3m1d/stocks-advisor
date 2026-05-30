@@ -179,32 +179,30 @@ parse-news:
 	$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run python3 -m app.daemons.parsers.news_parser --start $$start_dt --end $$end_dt
 
 # Обработка новостей: тикеры, сектор, тональность (по умолчанию — последние 60 дней до сегодня)
-# Usage: make process-news-prod [source=kommersant] [start=YYYY-MM-DD] [end=YYYY-MM-DD]
+# Usage: make process-news-prod [source=kommersant] [start=YYYY-MM-DD] [end=YYYY-MM-DD] [gpu=1]
 process-news-prod:
 	@now=$$(date +%Y-%m-%d); \
 	end_dt='$(end)'; \
 	start_dt='$(start)'; \
 	[ -z "$$end_dt" ] && end_dt=$$now; \
 	[ -z "$$start_dt" ] && start_dt=$$(date -d "$$end_dt - 60 day" +%Y-%m-%d); \
-	if [ -n "$(source)" ]; then \
-		$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python3 -m app.daemons.analyzers.news_processor --start $$start_dt --end $$end_dt --source $(source); \
-	else \
-		$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python3 -m app.daemons.analyzers.news_processor --start $$start_dt --end $$end_dt; \
-	fi
+	args="--start $$start_dt --end $$end_dt"; \
+	[ -n "$(source)" ] && args="$$args --source $(source)"; \
+	[ "$(gpu)" = "1" ] && args="$$args --gpu"; \
+	$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python3 -m app.daemons.analyzers.news_processor $$args
 
 # Обработка новостей в локальной БД (по умолчанию — последние 60 дней до сегодня)
-# Usage: make process-news [source=kommersant] [start=YYYY-MM-DD] [end=YYYY-MM-DD]
+# Usage: make process-news [source=kommersant] [start=YYYY-MM-DD] [end=YYYY-MM-DD] [gpu=1]
 process-news:
 	@now=$$(date +%Y-%m-%d); \
 	end_dt='$(end)'; \
 	start_dt='$(start)'; \
 	[ -z "$$end_dt" ] && end_dt=$$now; \
 	[ -z "$$start_dt" ] && start_dt=$$(date -d "$$end_dt - 60 day" +%Y-%m-%d); \
-	if [ -n "$(source)" ]; then \
-		$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run python3 -m app.daemons.analyzers.news_processor --start $$start_dt --end $$end_dt --source $(source); \
-	else \
-		$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run python3 -m app.daemons.analyzers.news_processor --start $$start_dt --end $$end_dt; \
-	fi
+	args="--start $$start_dt --end $$end_dt"; \
+	[ -n "$(source)" ] && args="$$args --source $(source)"; \
+	[ "$(gpu)" = "1" ] && args="$$args --gpu"; \
+	$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run python3 -m app.daemons.analyzers.news_processor $$args
 
 ###############
 # Tests

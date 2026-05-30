@@ -193,8 +193,8 @@ class NewsProcessor:
         self.sector_docs = [' '.join(words) for words in self.INDEX_KEYWORDS.values()]  # вектор ключевых слов
         self.sector_docs_norm = [self.normalize_text(doc) for doc in self.sector_docs]  # нормализация вектора
 
-        vectorizer = TfidfVectorizer(stop_words=self.russian_stopwords)
-        self.sector_matrix = vectorizer.fit_transform(self.sector_docs_norm)
+        self.vectorizer = TfidfVectorizer(stop_words=self.russian_stopwords)
+        self.sector_matrix = self.vectorizer.fit_transform(self.sector_docs_norm)
 
     def normalize_text(self, text: str) -> str:
         """Лемматизация и очистка текста от чисел и символов."""
@@ -276,7 +276,10 @@ class NewsProcessor:
         orgs = self.extract_organizations(text)
         return self.extract_tickers(orgs)
 
-    def process_news(self, df: pd.DataFrame, out_file: str):
+    def process_news(
+        self,
+        df: pd.DataFrame,
+    ):
         print('Ищем тикеры в новостях...')
         df['tickers'] = df['text'].progress_apply(self.get_tickers)
         print('DONE!\n')
@@ -289,7 +292,5 @@ class NewsProcessor:
         df['text_sentiment'] = self.get_text_sentiment(df.text.to_list())
         print('DONE!\n')
 
-        # сохраняем итоговый файл
-        print('Cохраняем итоговый файл...')
-        df.to_csv(out_file, index=False, na_rep='NULL')
-        print('DONE!')
+        print('Обработка завершена')
+        return df

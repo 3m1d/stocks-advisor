@@ -2,8 +2,8 @@ from collections.abc import Sequence
 from datetime import datetime
 
 import pandas as pd
-from sqlalchemy import desc, func, select
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import cast, desc, func, select
+from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -258,11 +258,19 @@ class NewsArticleRepository:
         limit: int = 100,
         offset: int = 0,
         news_article_id: int | None = None,
+        ticker: str | None = None,
+        sector: str | None = None,
     ) -> list[NewsArticleEnrichment]:
         q = select(NewsArticleEnrichment).options(joinedload(NewsArticleEnrichment.article))
 
         if news_article_id is not None:
             q = q.where(NewsArticleEnrichment.news_article_id == news_article_id)
+
+        if ticker is not None:
+            q = q.where(cast(NewsArticleEnrichment.tickers, JSONB).contains([ticker]))
+
+        if sector is not None:
+            q = q.where(NewsArticleEnrichment.sector == sector)
 
         q = q.distinct(NewsArticleEnrichment.news_article_id).order_by(
             NewsArticleEnrichment.news_article_id,
@@ -280,11 +288,15 @@ class NewsArticleRepository:
         limit: int = 100,
         offset: int = 0,
         news_article_id: int | None = None,
+        ticker: str | None = None,
+        sector: str | None = None,
     ) -> pd.DataFrame:
         enrichments = await self.get_all_enrichments(
             limit=limit,
             offset=offset,
             news_article_id=news_article_id,
+            ticker=ticker,
+            sector=sector,
         )
         return news_article_enrichments_to_dataframe(enrichments)
 

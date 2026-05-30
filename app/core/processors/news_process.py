@@ -301,16 +301,10 @@ class NewsProcessor:
                 sectors.append(self.sector_names[row.argmax()])
         return sectors
 
-    def get_text_sentiment(self, news_texts: list[str]) -> list[str | None]:
+    def get_text_sentiment(self, news_texts: list[str]) -> list[tuple[str, float]]:
         """
         Принимает на вход список текстов, применяет модель для определения тональности.
-        Выделяет только класс новости (без уверенности) и возврашает список меток той же размерности
-
-        Args:
-            news_texts (list[str]): Список новостей
-
-        Returns:
-            _type_: Список меток(label) тональностей для новостей
+        Возвращает список пар (label, score) той же размерности.
         """
         if self.sentiment_device >= 0:
             torch.cuda.empty_cache()
@@ -321,7 +315,7 @@ class NewsProcessor:
             max_length=self.sentiment_max_length,
             batch_size=self.sentiment_batch_size,
         )
-        return [sentiment.get('label') for sentiment in results]
+        return [(result['label'], float(result['score'])) for result in results]
 
     def extract_tickers(self, orgs: list[str]) -> list[str]:
         """Определяет тикеры по извлечённым названиям компаний."""
@@ -363,7 +357,9 @@ class NewsProcessor:
                 logger=logger,
                 count=n,
             ) as sentiment:
-                df['text_sentiment'] = self.get_text_sentiment(texts)
+                sentiment_results = self.get_text_sentiment(texts)
+                df['text_sentiment'] = [label for label, _ in sentiment_results]
+                df['sentiment_score'] = [score for _, score in sentiment_results]
 
         logger.info(
             'Processing done: %s articles in %s (enrichment=%s, sectors=%s, sentiment=%s)',

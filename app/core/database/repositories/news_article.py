@@ -55,6 +55,7 @@ NEWS_ARTICLE_ENRICHMENT_DATAFRAME_COLUMNS = [
     'tickers',
     'sector',
     'sentiment',
+    'sentiment_score',
 ]
 
 
@@ -75,6 +76,7 @@ def news_article_enrichments_to_dataframe(
             'sentiment': (
                 enrichment.sentiment.value if isinstance(enrichment.sentiment, NewsSentiment) else enrichment.sentiment
             ),
+            'sentiment_score': enrichment.sentiment_score,
         }
         for enrichment in enrichments
     ]
@@ -226,12 +228,23 @@ class NewsArticleRepository:
                     if isinstance(enrichment.sentiment, NewsSentiment)
                     else enrichment.sentiment
                 ),
+                'sentiment_score': enrichment.sentiment_score,
             }
             for enrichment in enrichments
         ]
 
+        stmt = insert(NewsArticleEnrichment)
         stmt = (
-            insert(NewsArticleEnrichment)
+            stmt.on_conflict_do_update(
+                constraint='uq_news_article_enrichment_article_id',
+                set_={
+                    'tickers': stmt.excluded.tickers,
+                    'sector': stmt.excluded.sector,
+                    'sentiment': stmt.excluded.sentiment,
+                    'sentiment_score': stmt.excluded.sentiment_score,
+                    'created_at': func.now(),
+                },
+            )
             .returning(NewsArticleEnrichment.id)
             .execution_options(insertmanyvalues_page_size=batch_size)
         )

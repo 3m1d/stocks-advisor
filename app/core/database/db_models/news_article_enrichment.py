@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import JSON, TIMESTAMP, BigInteger, ForeignKey, Index, String
+from sqlalchemy import JSON, TIMESTAMP, BigInteger, Float, ForeignKey, String, UniqueConstraint
 from sqlalchemy import text as _text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -36,6 +36,8 @@ class NewsArticleEnrichment(Base):
     sector: Mapped[str | None] = mapped_column(String(20), nullable=True)
     # Тональность новости
     sentiment: Mapped[NewsSentiment] = mapped_column(String(20), nullable=False)
+    # Уверенность модели в предсказанной тональности
+    sentiment_score: Mapped[float] = mapped_column(Float, nullable=False)
 
     created_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP,
@@ -45,13 +47,11 @@ class NewsArticleEnrichment(Base):
 
     article: Mapped[NewsArticle] = relationship(back_populates='enrichments')
 
-    __table_args__ = (
-        Index('idx_news_article_enrichment_article_id', 'news_article_id'),
-        Index('idx_news_article_enrichment_article_created_at', 'news_article_id', 'created_at'),
-    )
+    __table_args__ = (UniqueConstraint('news_article_id', name='uq_news_article_enrichment_article_id'),)
 
     def __repr__(self) -> str:
         return (
             f'<NewsArticleEnrichment(id={self.id}, news_article_id={self.news_article_id}, '
-            f'tickers={self.tickers!r}, sector={self.sector!r}, sentiment={self.sentiment!r})>'
+            f'tickers={self.tickers!r}, sector={self.sector!r}, sentiment={self.sentiment!r}, '
+            f'sentiment_score={self.sentiment_score:.4f})>'
         )

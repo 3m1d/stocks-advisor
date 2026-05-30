@@ -34,6 +34,7 @@ def _dataframe_to_enrichments(df: pd.DataFrame) -> list[NewsArticleEnrichment]:
                 tickers=list(row.tickers),
                 sector=sector,
                 sentiment=NewsSentiment(row.text_sentiment),
+                sentiment_score=float(row.sentiment_score),
             )
         )
     return enrichments

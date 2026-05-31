@@ -255,7 +255,7 @@ class NewsArticleRepository:
 
     async def get_all_enrichments(
         self,
-        limit: int = 100,
+        limit: int | None = None,
         offset: int = 0,
         news_article_id: int | None = None,
         ticker: str | None = None,
@@ -278,14 +278,17 @@ class NewsArticleRepository:
             desc(NewsArticleEnrichment.id),
         )
 
-        q = q.limit(limit).offset(offset)
+        if limit is not None:
+            q = q.limit(limit)
+        if offset is not None:
+            q = q.offset(offset)
         async with self.session.begin():
             result = await self.session.scalars(q)
             return list(result.all())
 
     async def get_all_enrichments_as_dataframe(
         self,
-        limit: int = 100,
+        limit: int | None = None,
         offset: int = 0,
         news_article_id: int | None = None,
         ticker: str | None = None,

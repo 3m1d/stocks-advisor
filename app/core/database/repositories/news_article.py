@@ -52,6 +52,7 @@ NEWS_ARTICLE_ENRICHMENT_DATAFRAME_COLUMNS = [
     'id',
     'news_article_id',
     'published_at',
+    'topic',
     'tickers',
     'sector',
     'sentiment',
@@ -71,6 +72,7 @@ def news_article_enrichments_to_dataframe(
             'id': enrichment.id,
             'news_article_id': enrichment.news_article_id,
             'published_at': enrichment.article.published_at,
+            'topic': _normalize_topic(enrichment.article.topic),
             'tickers': enrichment.tickers,
             'sector': enrichment.sector,
             'sentiment': (

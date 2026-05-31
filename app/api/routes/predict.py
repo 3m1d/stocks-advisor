@@ -11,7 +11,7 @@ router = APIRouter(prefix='/predict', tags=['Predict'])
 
 async def fetch_and_process_candles(ticker: str, num_records: int, session: AsyncSession):
     repo = AssetCandleRepository(session)
-    df = await repo.get_dataframe_by_ticker(ticker, num_records + 800)
+    df = await repo.get_dataframe(ticker, num_records + 800)
 
     if df.empty:
         raise HTTPException(404, f"No data found for ticker '{ticker}'")

@@ -46,7 +46,7 @@ async def get_ticker_prediction(ticker: str) -> dict | None:
             repo = AssetCandleRepository(session)
 
             # Fetch enough data for feature generation (need ~1000 hourly points for 200 2h-intervals after aggregation)
-            raw_df = await repo.get_dataframe_by_ticker(ticker, 1000)
+            raw_df = await repo.get_dataframe(ticker, 1000)
 
             if raw_df.empty:
                 return None

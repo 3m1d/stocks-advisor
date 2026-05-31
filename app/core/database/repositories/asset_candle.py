@@ -44,7 +44,7 @@ class AssetCandleRepository:
             result = await self.session.execute(stmt, payload)
             return len(result.all())
 
-    async def get_dataframe_by_ticker(self, ticker: str | None = None, limit: int | None = None) -> pd.DataFrame:
+    async def get_dataframe(self, ticker: str | None = None, limit: int | None = None) -> pd.DataFrame:
         query = select(AssetCandle).order_by(desc(AssetCandle.begin))
         if ticker is not None:
             query = query.where(AssetCandle.ticker == ticker)
@@ -74,3 +74,11 @@ class AssetCandleRepository:
             )
 
         return pd.DataFrame(data)
+
+    async def get_dataframe_by_ticker(
+        self, ticker: str | None = None, limit: int | None = None
+    ) -> dict[str, pd.DataFrame]:
+        df = await self.get_dataframe(limit=limit)
+        if df.empty:
+            return {}
+        return {str(ticker): group.reset_index(drop=True) for ticker, group in df.groupby('ticker', sort=True)}

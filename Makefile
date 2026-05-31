@@ -51,11 +51,11 @@ alembic-generate-migration:
 		echo "Error: name is required. Usage: make alembic-generate-migration name=<migration_name>"; \
 		exit 1; \
 	fi
-	$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run alembic -c $(ALEMBIC_CONFIG) revision --autogenerate -m "$(name)"
+	APP_CONFIG=config_local.toml uv run alembic -c $(ALEMBIC_CONFIG) revision --autogenerate -m "$(name)"
 
 # Применить миграцию для локальной БД
 alembic-run-migration:
-	$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run alembic -c $(ALEMBIC_CONFIG) upgrade head
+	APP_CONFIG=config_local.toml uv run alembic -c $(ALEMBIC_CONFIG) upgrade head
 
 ###############
 # App
@@ -71,7 +71,7 @@ fastapi-run-dev-prod:
 # Сервер для разработки с локальной БД (в docker контейнере, см. docker-compose.yml).
 # Конфиг БД берется из config_local.toml файла.
 fastapi-run-dev:
-	$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run fastapi dev app/main.py
+	APP_CONFIG=config_local.toml uv run fastapi dev app/main.py
 
 # Запустить Streamlit UI дашборд
 # Конфиг БД берется из .env файла или переменных окружения.
@@ -80,7 +80,7 @@ streamlit-run-prod:
 
 # Запустить Streamlit UI дашборд с локальной БД
 streamlit-run:
-	$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run streamlit run streamlit_app.py
+	APP_CONFIG=config_local.toml uv run streamlit run streamlit_app.py
 
 ###############
 # Docker
@@ -156,7 +156,7 @@ parse-data-from-moex:
 	start_dt='$(start)'; \
 	[ -z "$$end_dt" ] && end_dt=$$now; \
 	[ -z "$$start_dt" ] && start_dt=$$(date -d "$$end_dt - 60 day" +%Y-%m-%d); \
-	$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run python3 -m app.daemons.parsers.asset_parser --start $$start_dt --end $$end_dt
+	APP_CONFIG=config_local.toml uv run python3 -m app.daemons.parsers.asset_parser --start $$start_dt --end $$end_dt
 
 # Парсинг новостей (по умолчанию — последние 60 дней до сегодня)
 # Usage: make parse-news-prod [start=YYYY-MM-DD] [end=YYYY-MM-DD]
@@ -176,7 +176,7 @@ parse-news:
 	start_dt='$(start)'; \
 	[ -z "$$end_dt" ] && end_dt=$$now; \
 	[ -z "$$start_dt" ] && start_dt=$$(date -d "$$end_dt - 60 day" +%Y-%m-%d); \
-	$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run python3 -m app.daemons.parsers.news_parser --start $$start_dt --end $$end_dt
+	APP_CONFIG=config_local.toml uv run python3 -m app.daemons.parsers.news_parser --start $$start_dt --end $$end_dt
 
 # Обработка новостей: тикеры, сектор, тональность (по умолчанию — последние 60 дней до сегодня)
 # Usage: make process-news-prod [source=kommersant] [start=YYYY-MM-DD] [end=YYYY-MM-DD] [gpu=1]
@@ -202,7 +202,7 @@ process-news:
 	args="--start $$start_dt --end $$end_dt"; \
 	[ -n "$(source)" ] && args="$$args --source $(source)"; \
 	[ "$(gpu)" = "1" ] && args="$$args --gpu"; \
-	$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run python3 -m app.daemons.analyzers.news_processor $$args
+	APP_CONFIG=config_local.toml uv run python3 -m app.daemons.analyzers.news_processor $$args
 
 ###############
 # Tests

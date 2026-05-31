@@ -78,7 +78,7 @@ class AssetCandleRepository:
     async def get_dataframe_by_ticker(
         self, ticker: str | None = None, limit: int | None = None
     ) -> dict[str, pd.DataFrame]:
-        df = await self.get_dataframe(limit=limit)
+        df = await self.get_dataframe(limit=limit, ticker=ticker)
         if df.empty:
             return {}
         return {str(ticker): group.reset_index(drop=True) for ticker, group in df.groupby('ticker', sort=True)}

@@ -1,4 +1,6 @@
+from datetime import datetime
 from typing import Any
+
 import pandas as pd
 from sqlalchemy import select, desc
 from sqlalchemy.dialects.postgresql import insert
@@ -44,32 +46,63 @@ class AssetCandleRepository:
             result = await self.session.execute(stmt, payload)
             return len(result.all())
 
-    async def get_dataframe_by_ticker(self, ticker: str, limit: int) -> pd.DataFrame:
-        query = (
-            select(AssetCandle)
-            .where(AssetCandle.ticker == ticker)
-            .order_by(desc(AssetCandle.begin))
-            .limit(limit)
-        )
+    async def get_dataframe(
+        self,
+        ticker: str | None = None,
+        limit: int | None = None,
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+    ) -> pd.DataFrame:
+        query = select(AssetCandle).order_by(desc(AssetCandle.begin))
+        if ticker is not None:
+            query = query.where(AssetCandle.ticker == ticker)
+        if date_start is not None:
+            query = query.where(AssetCandle.begin >= date_start)
+        if date_end is not None:
+            query = query.where(AssetCandle.begin <= date_end)
+        if limit is not None:
+            query = query.limit(limit)
 
         async with self.session.begin():
             result = await self.session.execute(query)
             candles = result.scalars().all()
-        
+
         if not candles:
             return pd.DataFrame()
-        
+
         data = []
         for candle in reversed(candles):
-            data.append({
-                'begin': candle.begin,
-                'open': float(candle.open),
-                'high': float(candle.high),
-                'low': float(candle.low),
-                'close': float(candle.close),
-                'volume': float(candle.volume),
-                'value': float(candle.value) if candle.value else None,
-                'ticker': candle.ticker
-            })
-        
+            data.append(
+                {
+                    'begin': candle.begin,
+                    'open': float(candle.open),
+                    'high': float(candle.high),
+                    'low': float(candle.low),
+                    'close': float(candle.close),
+                    'volume': float(candle.volume),
+                    'value': float(candle.value) if candle.value else None,
+                    'ticker': candle.ticker,
+                }
+            )
+
         return pd.DataFrame(data)
+
+    async def get_dataframe_by_ticker(
+        self,
+        ticker: str | None = None,
+        limit: int | None = None,
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+    ) -> dict[str, pd.DataFrame]:
+        df = await self.get_dataframe(
+            ticker=ticker,
+            limit=limit,
+            date_start=date_start,
+            date_end=date_end,
+        )
+        if df.empty:
+            return {}
+        return {
+            str(ticker_symbol): ticker_df.reset_index(drop=True)
+            for ticker_symbol, ticker_df in df.groupby('ticker', sort=True)
+        }

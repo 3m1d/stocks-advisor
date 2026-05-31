@@ -52,6 +52,7 @@ NEWS_ARTICLE_ENRICHMENT_DATAFRAME_COLUMNS = [
     'id',
     'news_article_id',
     'published_at',
+    'topic',
     'tickers',
     'sector',
     'sentiment',
@@ -71,6 +72,7 @@ def news_article_enrichments_to_dataframe(
             'id': enrichment.id,
             'news_article_id': enrichment.news_article_id,
             'published_at': enrichment.article.published_at,
+            'topic': _normalize_topic(enrichment.article.topic),
             'tickers': enrichment.tickers,
             'sector': enrichment.sector,
             'sentiment': (
@@ -255,11 +257,13 @@ class NewsArticleRepository:
 
     async def get_all_enrichments(
         self,
-        limit: int = 100,
+        limit: int | None = None,
         offset: int = 0,
         news_article_id: int | None = None,
         ticker: str | None = None,
         sector: str | None = None,
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
     ) -> list[NewsArticleEnrichment]:
         q = select(NewsArticleEnrichment).options(joinedload(NewsArticleEnrichment.article))
 
@@ -272,24 +276,36 @@ class NewsArticleRepository:
         if sector is not None:
             q = q.where(NewsArticleEnrichment.sector == sector)
 
+        if date_start is not None or date_end is not None:
+            q = q.join(NewsArticleEnrichment.article)
+            if date_start is not None:
+                q = q.where(NewsArticle.published_at >= date_start)
+            if date_end is not None:
+                q = q.where(NewsArticle.published_at <= date_end)
+
         q = q.distinct(NewsArticleEnrichment.news_article_id).order_by(
             NewsArticleEnrichment.news_article_id,
             desc(NewsArticleEnrichment.created_at),
             desc(NewsArticleEnrichment.id),
         )
 
-        q = q.limit(limit).offset(offset)
+        if limit is not None:
+            q = q.limit(limit)
+        if offset is not None:
+            q = q.offset(offset)
         async with self.session.begin():
             result = await self.session.scalars(q)
             return list(result.all())
 
     async def get_all_enrichments_as_dataframe(
         self,
-        limit: int = 100,
+        limit: int | None = None,
         offset: int = 0,
         news_article_id: int | None = None,
         ticker: str | None = None,
         sector: str | None = None,
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
     ) -> pd.DataFrame:
         enrichments = await self.get_all_enrichments(
             limit=limit,
@@ -297,6 +313,8 @@ class NewsArticleRepository:
             news_article_id=news_article_id,
             ticker=ticker,
             sector=sector,
+            date_start=date_start,
+            date_end=date_end,
         )
         return news_article_enrichments_to_dataframe(enrichments)
 

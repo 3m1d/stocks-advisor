@@ -262,6 +262,8 @@ class NewsArticleRepository:
         news_article_id: int | None = None,
         ticker: str | None = None,
         sector: str | None = None,
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
     ) -> list[NewsArticleEnrichment]:
         q = select(NewsArticleEnrichment).options(joinedload(NewsArticleEnrichment.article))
 
@@ -273,6 +275,13 @@ class NewsArticleRepository:
 
         if sector is not None:
             q = q.where(NewsArticleEnrichment.sector == sector)
+
+        if date_start is not None or date_end is not None:
+            q = q.join(NewsArticleEnrichment.article)
+            if date_start is not None:
+                q = q.where(NewsArticle.published_at >= date_start)
+            if date_end is not None:
+                q = q.where(NewsArticle.published_at <= date_end)
 
         q = q.distinct(NewsArticleEnrichment.news_article_id).order_by(
             NewsArticleEnrichment.news_article_id,
@@ -295,6 +304,8 @@ class NewsArticleRepository:
         news_article_id: int | None = None,
         ticker: str | None = None,
         sector: str | None = None,
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
     ) -> pd.DataFrame:
         enrichments = await self.get_all_enrichments(
             limit=limit,
@@ -302,6 +313,8 @@ class NewsArticleRepository:
             news_article_id=news_article_id,
             ticker=ticker,
             sector=sector,
+            date_start=date_start,
+            date_end=date_end,
         )
         return news_article_enrichments_to_dataframe(enrichments)
 

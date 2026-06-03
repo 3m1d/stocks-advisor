@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from IPython.display import clear_output
 from tqdm import tqdm
 from sklearn.metrics import mean_absolute_error, r2_score
-from model import StockLSTMRegressor
+from .model import StockLSTMRegressor
 
 
 sns.set_style('whitegrid')

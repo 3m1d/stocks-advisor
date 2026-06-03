@@ -10,7 +10,7 @@ from typing import Any, TypeVar
 import numpy as np
 import pandas as pd
 
-from constants import TARGET_COLUMN
+from .constants import TARGET_COLUMN
 
 TICKERS_WITH_NEWS = ['SBER', 'TCSG', 'GAZP', 'LKOH', 'ROSN']
 NEWS_HORIZONS_HOURS = [2, 24, 72, 168]

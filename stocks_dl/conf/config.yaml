@@ -1,0 +1,28 @@
+defaults:
+  - _self_
+
+app_config: config.toml
+environment: prod
+experiment_name: sber_lstm_checkpoint
+ticker: SBER
+seed: 42
+mode: prd  # search | prd | analysis | demo
+
+# Optional: skip search and use existing PRD run
+prd_run_id: null
+
+data:
+  test_size: 0.2
+  val_size: 0.2
+  final_val_size: 0.15
+  enrichments_limit: 1000000
+
+training:
+  batch_size: 8
+  weight_decay: 0.01
+  base_epochs: 8
+  show_plots: false
+
+demo:
+  csv_path: stocks_dl/demo_sber_test.csv
+  output_path: stocks_dl/prd_demo_predictions.csv

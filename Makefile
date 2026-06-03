@@ -208,11 +208,24 @@ process-news:
 # Tests
 ###############
 
-.PHONY: mlflow-smoke-test mlflow-smoke-test-prod
+.PHONY: mlflow-smoke-test mlflow-smoke-test-prod dl-experiments-search dl-experiments-prd dl-experiments-analysis dl-demonstration
 
 # Проверка подключения к MLFlow
 mlflow-smoke-test:
-	$(RUN_WITH_ENV) APP_CONFIG=config_local.toml uv run python -m app.scripts.mlflow_smoke_test
+	APP_CONFIG=config_local.toml uv run python -m app.scripts.mlflow_smoke_test
 
 mlflow-smoke-test-prod:
 	$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python -m app.scripts.mlflow_smoke_test
+
+# DL checkpoint 7 (Hydra CLI, prod tunnel + .env)
+dl-experiments-search:
+	$(RUN_WITH_ENV) uv run python -m stocks_dl.dl_experiments mode=search environment=prod
+
+dl-experiments-prd:
+	$(RUN_WITH_ENV) uv run python -m stocks_dl.dl_experiments mode=prd environment=prod
+
+dl-experiments-analysis:
+	$(RUN_WITH_ENV) uv run python -m stocks_dl.dl_experiments mode=analysis environment=prod
+
+dl-demonstration:
+	$(RUN_WITH_ENV) uv run python -m stocks_dl.dl_demonstration environment=prod

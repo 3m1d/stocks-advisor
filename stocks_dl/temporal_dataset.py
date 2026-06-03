@@ -7,9 +7,8 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from train import calculate_metrics
-
-from constants import TARGET_COLUMN
+from .constants import TARGET_COLUMN
+from .train import calculate_metrics
 
 
 def set_seed(seed: int) -> None:

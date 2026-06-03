@@ -1,0 +1,57 @@
+defaults:
+  - environment: local
+  - experiment: lstm_checkpoint
+  - _self_
+
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: outputs/dl/${mode}/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: outputs/dl/multirun/${now:%Y-%m-%d_%H-%M-%S}
+
+# Default runtime. Can be overridden via CLI
+mode: search  # search | prd | analysis
+
+# One ticker:  ticker=GAZP
+# Many:        tickers=[SBER,GAZP]
+# All: tickers=all
+ticker: null
+tickers:
+  - SBER
+  - TCSG
+  - GAZP
+  - LKOH
+  - ROSN
+
+seed: 42
+prd_run_id: null
+
+# --- Data ---
+data:
+  test_size: 0.2
+  val_size: 0.2
+  final_val_size: 0.15
+  enrichments_limit: 1000000
+
+# --- Training / MLflow logging ---
+training:
+  batch_size: 8
+  weight_decay: 0.01
+  base_epochs: 8
+  show_plots: false
+  verbose: false
+  suppress_mlflow_urls: true
+
+# --- Generated artifacts (not under stocks_dl package code) ---
+paths:
+  runs_dir: stocks_dl_runs
+  search_summary_template: search/{ticker}_search_summary.csv
+  demo_csv_template: prd/demo_{ticker}_test.csv
+  demo_output_template: demo/prd_demo_{ticker}_predictions.csv
+  analysis_plot_template: analysis/{ticker}/prd_predictions.png
+
+# --- Demo CLI (used when mode is not in dl_experiments; dl_demonstration resolves per ticker) ---
+demo:
+  plot: true

@@ -228,7 +228,7 @@ mlruns/
 mlflow.db
 
 # Local docker compose data
-data
+/data
 
 # Local CLI apps for personal use
 .cli
@@ -236,3 +236,8 @@ data
 # Production envs
 production.env
 basic_auth.ini
+
+# Run results
+*.png
+/outputs/
+/stocks_dl_runs/

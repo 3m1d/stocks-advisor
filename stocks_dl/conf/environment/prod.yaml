@@ -1,0 +1,3 @@
+# @package _global_
+environment: prod
+app_config: config.toml

@@ -24,7 +24,7 @@ def ensure_paths() -> Path:
 
 
 def configure_environment(
-    environment: str = 'prod',
+    environment: str = 'local',
     experiment_name: str | None = None,
     *,
     suppress_mlflow_urls: bool = True,

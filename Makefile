@@ -208,7 +208,11 @@ process-news:
 # Tests
 ###############
 
-.PHONY: mlflow-smoke-test mlflow-smoke-test-prod dl-experiments-search dl-experiments-prd dl-experiments-analysis dl-demonstration
+.PHONY: mlflow-smoke-test mlflow-smoke-test-prod \
+	dl-experiments-search dl-experiments-search-prod \
+	dl-experiments-prd dl-experiments-prd-prod \
+	dl-experiments-analysis dl-experiments-analysis-prod \
+	dl-demonstration dl-demonstration-prod
 
 # Проверка подключения к MLFlow
 mlflow-smoke-test:
@@ -221,31 +225,34 @@ mlflow-smoke-test-prod:
 # Training & demonstration
 ###############
 
-# Подбор гиперпараметров LSTM (все тикеры из conf/config.yaml)
+DL_EXPERIMENTS = uv run python -m stocks_dl.cli.dl_experiments experiment=lstm_checkpoint
+DL_EXPERIMENTS_PROD = $(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_experiments environment=prod experiment=lstm_checkpoint
+DL_DEMO = uv run python -m stocks_dl.cli.dl_demonstration experiment=lstm_checkpoint
+DL_DEMO_PROD = $(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_demonstration environment=prod experiment=lstm_checkpoint
+DL_TICKER_ARG = $(if $(TICKER),ticker=$(TICKER),)
+
+# local: config_local.toml (см. conf/config.yaml, environment=local)
 dl-experiments-search:
-	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_experiments mode=search environment=prod experiment=lstm_checkpoint
+	$(DL_EXPERIMENTS) mode=search $(DL_TICKER_ARG)
 
-# Только один тикер: make dl-experiments-search-ticker TICKER=GAZP
-dl-experiments-search-ticker:
-	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_experiments mode=search environment=prod experiment=lstm_checkpoint ticker=$(TICKER)
-
-# PRD для всех тикеров (нужен search summary CSV или runs в MLflow)
 dl-experiments-prd:
-	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_experiments mode=prd environment=prod experiment=lstm_checkpoint
+	$(DL_EXPERIMENTS) mode=prd $(DL_TICKER_ARG)
 
-dl-experiments-prd-ticker:
-	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_experiments mode=prd environment=prod experiment=lstm_checkpoint ticker=$(TICKER)
-
-# Анализ ошибок PRD
 dl-experiments-analysis:
-	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_experiments mode=analysis environment=prod experiment=lstm_checkpoint
+	$(DL_EXPERIMENTS) mode=analysis $(DL_TICKER_ARG)
 
-dl-experiments-analysis-ticker:
-	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_experiments mode=analysis environment=prod experiment=lstm_checkpoint ticker=$(TICKER)
-
-# Демонстрация PRD (все тикеры)
 dl-demonstration:
-	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_demonstration environment=prod experiment=lstm_checkpoint
+	$(DL_DEMO) $(DL_TICKER_ARG)
 
-dl-demonstration-ticker:
-	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_demonstration environment=prod experiment=lstm_checkpoint ticker=$(TICKER)
+# prod: config.toml + .env (SSH tunnels)
+dl-experiments-search-prod:
+	$(DL_EXPERIMENTS_PROD) mode=search $(DL_TICKER_ARG)
+
+dl-experiments-prd-prod:
+	$(DL_EXPERIMENTS_PROD) mode=prd $(DL_TICKER_ARG)
+
+dl-experiments-analysis-prod:
+	$(DL_EXPERIMENTS_PROD) mode=analysis $(DL_TICKER_ARG)
+
+dl-demonstration-prod:
+	$(DL_DEMO_PROD) $(DL_TICKER_ARG)

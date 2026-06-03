@@ -24,31 +24,60 @@
 
 ## Запуск
 
+Команды запускаются с настройками по умолчанию из `conf/config.yaml`:
+
+- Подключение к локальной БД
+- Запуск на всех доступных тикерах сразу
+
 ### Запуск экспериментов
 
-Базовая команда:
+Запуск локально (локальные MLFlow и БД):
 
 ```bash
-uv run python -m stocks_dl.cli.dl_experiments
-```
-
-Можно переопределить
-
-```bash
-# все тикеры из config
 make dl-experiments-search
-# Либо так: make dl-experiments-search tickers=all
-
-# один тикер
-make dl-experiments-search-ticker TICKER=GAZP
-
-# выбор определенного тикера, с определенной стадией
-uv run python -m stocks_dl.cli.dl_experiments mode=search ticker=GAZP # Перебор гиперпараметров для тикера GAZP
-uv run python -m stocks_dl.cli.dl_experiments mode=prd tickers=[SBER,GAZP] # Обучение модели по лучшим гиперпараметрам, тикеры SBER,GAZP
-uv run python -m stocks_dl.cli.dl_experiments mode=analysis tickers=all # Анализ ошибок модели, для всех тикеров
+# Или так: uv run python -m stocks_dl.cli.dl_experiments
 ```
 
-### Переопределения
+Запуск с production контуром (production MLFlow и БД):
+
+```bash
+make dl-experiments-search-prod
+# Или так: uv run python -m stocks_dl.cli.dl_experiments environment=prod
+```
+
+### Обучение лучшей модели
+
+```bash
+make dl-experiments-prd
+# На продакшне: make dl-experiments-prd-prod
+```
+
+### Анализ ошибок модели
+
+```bash
+make dl-experiments-analysis
+# На продакшне: make dl-experiments-analysis-prod
+```
+
+### Демонстрация работы модели
+
+```bash
+make dl-demonstration
+# На продакшне: make dl-demonstration-prod
+```
+
+### Доп. параметры запуска
+
+Для каждой из этих команд можно указать определенный тикер в параметре `TICKER`, например:
+
+```bash
+make dl-experiments-search TICKER=SBER
+make dl-experiments-prd TICKER=SBER
+make dl-experiments-analysis TICKER=SBER
+make dl-demonstration TICKER=SBER
+```
+
+Другие параметры запуска можно переопределить, запустив команду напрямую. Например:
 
 ```bash
 uv run python -m stocks_dl.cli.dl_experiments \
@@ -60,30 +89,24 @@ uv run python -m stocks_dl.cli.dl_experiments \
   training.verbose=true
 ```
 
-Артефакты пишутся в **`stocks_dl_runs/`** (корень репо, не в пакет `stocks_dl/`):
+Параметры:
+
+- `mode` - режим работы:
+  - `search` - перебор гиперпараметров
+  - `prd` - обучение модели по лучшим гиперпараметрам
+  - `analysis` - анализ ошибок модели
+- `experiment` - название эксперимента в MLFlow
+- `ticker` - тикер. `all` - все тикеры, `[SBER,GAZP]` - определенные тикеры
+- `training.base_epochs` - количество эпох
+- `training.verbose` - verbose режим
+
+## Артефакты
+
+Артефакты пишутся в **`stocks_dl_runs/`**:
 
 | Подпапка | Содержимое |
 |----------|------------|
-| `search/` | `{ticker}_search_summary.csv` |
-| `prd/` | `demo_{ticker}_test.csv` (снимок test при PRD) |
-| `demo/` | `prd_demo_{ticker}_predictions.csv` + `.png` |
-| `analysis/{ticker}/` | `prd_predictions.png` (локальная копия из analysis) |
-
-Переопределение корня: `paths.runs_dir=my_outputs`
-
-Hydra пишет метаданные run в `outputs/dl/<mode>/<timestamp>/` (рабочая директория — корень репо, `hydra.job.chdir: false`).
-
-## CLI (Makefile)
-
-```bash
-make dl-experiments-search      # grid search, все тикеры
-make dl-experiments-prd         # PRD по каждому тикеру
-make dl-experiments-analysis
-make dl-demonstration
-```
-
-## Notebooks
-
-`notebooks/dl_checkpoint/` — `DL_Experiments.ipynb`, `DL_Demonstration.ipynb`.
-
-Запуск из **корня репо**: `python -m stocks_dl.cli.<script>`.
+| `search/` | Результаты работы экспериментов |
+| `prd/` | Результаты запуска модели по лучшим гиперпараметрам |
+| `demo/` | Результаты демонстрации работы модели |
+| `analysis/{ticker}/` | Результаты анализа ошибок модели |

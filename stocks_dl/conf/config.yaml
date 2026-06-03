@@ -1,5 +1,5 @@
 defaults:
-  - environment: prod
+  - environment: local
   - experiment: lstm_checkpoint
   - _self_
 

@@ -93,3 +93,9 @@ make fastapi-run-dev-local
 - Investing.com: <https://www.investing.com/>
 
 ---
+
+## Начало работы
+
+[app/README.md](app/README.md) - описание fastapi приложения, подключения к БД, парсинга данных.
+
+[stocks_dl/README.md](stocks_dl/README.md) - обучение DL модели.

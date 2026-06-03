@@ -123,12 +123,13 @@ async def load_candles_by_ticker() -> dict[str, pd.DataFrame]:
         return await repo.get_dataframe_by_ticker()
 
 
-async def load_enrichments() -> pd.DataFrame:
+async def load_enrichments(limit: int | None = None) -> pd.DataFrame:
     from app.core.database import NewsArticleRepository, get_db_session
 
+    row_limit = ENRICHMENTS_LIMIT if limit is None else limit
     async with get_db_session() as session:
         repo = NewsArticleRepository(session)
-        enrichments_df = await repo.get_all_enrichments_as_dataframe(limit=ENRICHMENTS_LIMIT)
+        enrichments_df = await repo.get_all_enrichments_as_dataframe(limit=row_limit)
     enrichments_df.rename(columns={'published_at': 'date'}, inplace=True)
     return enrichments_df
 
@@ -164,17 +165,52 @@ def attach_tonality(
     return features_by_ticker
 
 
-async def load_features_bundle(ticker: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+async def load_features_bundle(
+    ticker: str,
+    *,
+    enrichments_limit: int | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    bundle = await load_features_bundle_multi([ticker], enrichments_limit=enrichments_limit)
+    return bundle[ticker], bundle['_enrichments']
+
+
+async def load_features_bundle_multi(
+    tickers: list[str],
+    *,
+    enrichments_limit: int | None = None,
+) -> dict[str, pd.DataFrame]:
+    """Load candles once, build features, attach tonality for all requested tickers."""
     candles = await load_candles_by_ticker()
-    enrichments = await load_enrichments()
+    enrichments = await load_enrichments(limit=enrichments_limit)
     features = build_features_by_ticker(candles)
-    features = attach_tonality(features, enrichments, tickers=[ticker])
-    return features[ticker].copy(), enrichments
+    features = attach_tonality(features, enrichments, tickers=tickers)
+    out: dict[str, pd.DataFrame] = {'_enrichments': enrichments}
+    for ticker in tickers:
+        if ticker not in features:
+            raise KeyError(f'No feature frame for ticker {ticker}')
+        out[ticker] = features[ticker].copy()
+    return out
 
 
-def load_features_and_enrichments(ticker: str) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Load features"""
-    return run_async_safe(load_features_bundle(ticker))
+def load_features_and_enrichments(
+    ticker: str,
+    *,
+    enrichments_limit: int | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    return run_async_safe(load_features_bundle(ticker, enrichments_limit=enrichments_limit))
+
+
+def load_features_multi(
+    tickers: list[str],
+    *,
+    enrichments_limit: int | None = None,
+) -> tuple[dict[str, pd.DataFrame], pd.DataFrame]:
+    """Sync helper: {ticker: features_df}, enrichments_df."""
+    bundle = run_async_safe(
+        load_features_bundle_multi(tickers, enrichments_limit=enrichments_limit)
+    )
+    enrichments = bundle.pop('_enrichments')
+    return bundle, enrichments
 
 
 def build_data_provenance(

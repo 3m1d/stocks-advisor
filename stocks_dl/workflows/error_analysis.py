@@ -1,5 +1,3 @@
-"""Structured error analysis, baseline and robustness checks."""
-
 from __future__ import annotations
 
 import tempfile
@@ -25,14 +23,6 @@ from stocks_dl.viz.plotting import save_direction_confusion_matrix, save_predict
 
 LOW_AMPLITUDE_THRESHOLD = 0.5
 LARGE_MOVE_THRESHOLD = 3.0
-
-
-def _direction_label(value: float, flat_threshold: float = 0.25) -> str:
-    if value > flat_threshold:
-        return 'up'
-    if value < -flat_threshold:
-        return 'down'
-    return 'flat'
 
 
 def classify_error_row(row: pd.Series, sentiment_cols: list[str]) -> tuple[str, str]:
@@ -73,9 +63,7 @@ def classify_error_row(row: pd.Series, sentiment_cols: list[str]) -> tuple[str, 
             'Тональность в окне отсутствует или нулевая; модель опирается на технические признаки. '
             'Можно улучшить пайплайн новостей, но не в рамках весов LSTM.'
         ),
-        'residual_noise': (
-            'Остаточная ошибка при типичных условиях; частично объясняется шумом целевой переменной.'
-        ),
+        'residual_noise': ('Остаточная ошибка при типичных условиях; частично объясняется шумом целевой переменной.'),
     }
     return category, explanations.get(category, 'Ошибка предсказания.')
 
@@ -108,7 +96,7 @@ def enrich_top_errors(
                 topics = window['topic'].dropna().astype(str).head(3).tolist()
                 excerpt = '; '.join(topics)
             elif not window.empty and 'sentiment' in window.columns:
-                excerpt = f"sentiment mix: {window['sentiment'].value_counts().head(2).to_dict()}"
+                excerpt = f'sentiment mix: {window["sentiment"].value_counts().head(2).to_dict()}'
         if not excerpt:
             sent_vals = [row.get(c) for c in sentiment_cols[:3]]
             excerpt = f'sentiment features: {sent_vals}'
@@ -146,11 +134,11 @@ def build_error_analysis_markdown(
         lines.append(f'- **{cat}**: {cnt}')
     lines.extend(['', '## Разобранные примеры', ''])
     for i, row in top_errors_df.head(5).iterrows():
-        lines.append(f"### Пример {i + 1} — {row['begin']}")
-        lines.append(f"- target: {row[TARGET_COLUMN]:.4f}%, predict: {row['predict']:.4f}%")
-        lines.append(f"- abs_error: {row['abs_error']:.4f}, category: {row['error_category']}")
-        lines.append(f"- news: {row.get('news_excerpt', '')}")
-        lines.append(f"- {row.get('explanation', '')}")
+        lines.append(f'### Пример {i + 1} — {row["begin"]}')
+        lines.append(f'- target: {row[TARGET_COLUMN]:.4f}%, predict: {row["predict"]:.4f}%')
+        lines.append(f'- abs_error: {row["abs_error"]:.4f}, category: {row["error_category"]}')
+        lines.append(f'- news: {row.get("news_excerpt", "")}')
+        lines.append(f'- {row.get("explanation", "")}')
         lines.append('')
     lines.extend(['## Robustness', '', robustness_df.to_csv(index=False)])
     return '\n'.join(lines)
@@ -174,10 +162,7 @@ def run_robustness_checks(
             **{col: frame[col].shift(1).fillna(0) for col in sentiment_cols}
         ),
         'noise_sentiment': lambda frame: frame.assign(
-            **{
-                col: frame[col] + np.random.normal(0, 0.05, size=len(frame))
-                for col in sentiment_cols
-            }
+            **{col: frame[col] + np.random.normal(0, 0.05, size=len(frame)) for col in sentiment_cols}
         ),
     }
     norm = norm_stats_from_checkpoint(checkpoint) if checkpoint else None
@@ -237,9 +222,7 @@ def run_error_analysis(
             X_std=X_std,
         )
     else:
-        _, _, _, _, _, test_loader = make_loaders(
-            prd_train_df, prd_val_df, test_df, seq_len, batch_size
-        )
+        _, _, _, _, _, test_loader = make_loaders(prd_train_df, prd_val_df, test_df, seq_len, batch_size)
     prd_test_metrics, y_true, y_pred = evaluate_model(analysis_model, test_loader)
     predictions_df = build_predictions_df(test_df, y_true, y_pred, seq_len)
 
@@ -280,9 +263,7 @@ def run_error_analysis(
         int(prd_run_summary.get('seed', 42)),
         checkpoint=checkpoint,
     )
-    analysis_md = build_error_analysis_markdown(
-        top_errors_df, error_summary_df, robustness_df, ticker
-    )
+    analysis_md = build_error_analysis_markdown(top_errors_df, error_summary_df, robustness_df, ticker)
 
     save_prediction_plot(predictions_df, PKG_ROOT / 'prd_predictions.png', f'{ticker} PRD predictions')
 

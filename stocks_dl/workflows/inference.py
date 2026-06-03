@@ -1,7 +1,3 @@
-"""Load PRD model from MLflow and run sequence inference."""
-
-from __future__ import annotations
-
 from pathlib import Path
 from typing import Any
 
@@ -165,9 +161,7 @@ def predict_from_dataframes(
                 'PRD checkpoint has no feature_names/X_mean/X_std; '
                 'pass train_df and val_df or re-run PRD to log checkpoint.pt.'
             )
-        _, _, _, _, _, test_loader = make_loaders(
-            train_df, val_df, test_df, sequence_length, batch_size
-        )
+        _, _, _, _, _, test_loader = make_loaders(train_df, val_df, test_df, sequence_length, batch_size)
     metrics, y_true, y_pred = evaluate_model(model, test_loader)
     predictions_df = build_predictions_df(test_df, y_true, y_pred, sequence_length)
     return predictions_df, metrics
@@ -190,9 +184,7 @@ def predict_test_csv(
     model, checkpoint = load_prd_model(prd_run_id)
     seq_len = int(prd_summary['sequence_length'])
     batch_size = int(prd_summary['batch_size'])
-    test_df = _resolve_test_df(
-        features_df, demo_csv, test_size=test_size, val_size=val_size
-    )
+    test_df = _resolve_test_df(features_df, demo_csv, test_size=test_size, val_size=val_size)
     train_df, val_df = _prd_train_val_fallback(
         features_df, checkpoint, test_size=test_size, val_size=val_size, final_val_size=final_val_size
     )

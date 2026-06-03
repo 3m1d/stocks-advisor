@@ -1,5 +1,3 @@
-"""MLflow experiment orchestration for LSTM stock regressor."""
-
 from __future__ import annotations
 
 import json
@@ -171,16 +169,12 @@ def run_experiment(
         history_df.to_csv(tmpdir / 'history.csv', index=False)
         save_learning_curves(train_losses, val_losses, val_history, tmpdir / 'learning_curves.png')
 
-        predictions_df = build_predictions_df(
-            test_df, test_targets, test_preds, cfg['sequence_length']
-        )
+        predictions_df = build_predictions_df(test_df, test_targets, test_preds, cfg['sequence_length'])
         predictions_df.to_csv(tmpdir / 'test_predictions.csv', index=False)
-        save_prediction_plot(
-            predictions_df, tmpdir / 'predictions.png', f"{cfg['ticker']} predictions"
-        )
+        save_prediction_plot(predictions_df, tmpdir / 'predictions.png', f'{cfg["ticker"]} predictions')
 
         if stage == 'prd':
-            demo_name = f"demo_{cfg['ticker'].lower()}_test.csv"
+            demo_name = f'demo_{cfg["ticker"].lower()}_test.csv'
             test_df.to_csv(tmpdir / demo_name, index=False)
             test_df.to_csv(PKG_ROOT / demo_name, index=False)
 
@@ -211,11 +205,7 @@ def run_experiment(
             'config_json': json.dumps(cfg, ensure_ascii=False),
         }
         mlflow.log_metrics(
-            {
-                k: v
-                for k, v in summary.items()
-                if isinstance(v, (int, float, np.floating)) and k != 'seed'
-            }
+            {k: v for k, v in summary.items() if isinstance(v, (int, float, np.floating)) and k != 'seed'}
         )
         mlflow.log_artifacts(str(tmpdir))
 
@@ -238,8 +228,8 @@ def run_experiment(
 
         if not verbose and not show_plots:
             print(
-                f"[{cfg['run_name']}] val_dir_acc={summary['val_direction_accuracy']:.4f} "
-                f"test_dir_acc={summary['test_direction_accuracy']:.4f}"
+                f'[{cfg["run_name"]}] val_dir_acc={summary["val_direction_accuracy"]:.4f} '
+                f'test_dir_acc={summary["test_direction_accuracy"]:.4f}'
             )
 
         return summary, run.info.run_id
@@ -279,9 +269,11 @@ def run_search(
             verbose=verbose,
         )
         rows.append(summary)
-    summary_df = pd.DataFrame(rows).sort_values(
-        ['val_direction_accuracy', 'val_r2', 'val_rmse'], ascending=[False, False, True]
-    ).reset_index(drop=True)
+    summary_df = (
+        pd.DataFrame(rows)
+        .sort_values(['val_direction_accuracy', 'val_r2', 'val_rmse'], ascending=[False, False, True])
+        .reset_index(drop=True)
+    )
     out_csv = PKG_ROOT / f'{ticker.lower()}_search_summary.csv'
     summary_df.to_csv(out_csv, index=False)
     return summary_df
@@ -323,7 +315,7 @@ def run_prd(
     prd_cfg = {
         **best_cfg,
         'num_epochs': best_cfg['num_epochs'],
-        'run_name': f"{best_cfg['ticker'].lower()}_prd_{best_row['run_name']}",
+        'run_name': f'{best_cfg["ticker"].lower()}_prd_{best_row["run_name"]}',
     }
     prd_summary, prd_run_id = run_experiment(
         cfg=prd_cfg,

@@ -1,22 +1,41 @@
 defaults:
+  - environment: prod
+  - experiment: lstm_checkpoint
   - _self_
 
-app_config: config.toml
-environment: prod
-experiment_name: sber_lstm_checkpoint
-ticker: SBER
-seed: 42
-mode: prd  # search | prd | analysis | demo
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: outputs/dl/${mode}/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: outputs/dl/multirun/${now:%Y-%m-%d_%H-%M-%S}
 
-# Optional: skip search and use existing PRD run
+# Default runtime. Can be overridden via CLI
+mode: search  # search | prd | analysis
+
+# One ticker:  ticker=GAZP
+# Many:        tickers=[SBER,GAZP]
+# All: tickers=all
+ticker: null
+tickers:
+  - SBER
+  - TCSG
+  - GAZP
+  - LKOH
+  - ROSN
+
+seed: 42
 prd_run_id: null
 
+# --- Data ---
 data:
   test_size: 0.2
   val_size: 0.2
   final_val_size: 0.15
   enrichments_limit: 1000000
 
+# --- Training / MLflow logging ---
 training:
   batch_size: 8
   weight_decay: 0.01
@@ -25,6 +44,12 @@ training:
   verbose: false
   suppress_mlflow_urls: true
 
+# --- Paths ---
+paths:
+  search_summary_template: '{ticker}_search_summary.csv'
+  demo_csv_template: demo_{ticker}_test.csv
+  demo_output_template: prd_demo_{ticker}_predictions.csv
+
+# --- Demo CLI (used when mode is not in dl_experiments; dl_demonstration resolves per ticker) ---
 demo:
-  csv_path: stocks_dl/demo_sber_test.csv
-  output_path: stocks_dl/prd_demo_predictions.csv
+  plot: true

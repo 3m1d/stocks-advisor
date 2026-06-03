@@ -221,18 +221,31 @@ mlflow-smoke-test-prod:
 # Training & demonstration
 ###############
 
-# Подбор гиперпараметров LSTM с grid search
+# Подбор гиперпараметров LSTM (все тикеры из conf/config.yaml)
 dl-experiments-search:
-	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_experiments mode=search environment=prod
+	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_experiments mode=search environment=prod experiment=lstm_checkpoint
 
-# Обучение production модели с лучшей конфигурацией из dl-experiments-search
+# Только один тикер: make dl-experiments-search-ticker TICKER=GAZP
+dl-experiments-search-ticker:
+	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_experiments mode=search environment=prod experiment=lstm_checkpoint ticker=$(TICKER)
+
+# PRD для всех тикеров (нужен search summary CSV или runs в MLflow)
 dl-experiments-prd:
-	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_experiments mode=prd environment=prod
+	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_experiments mode=prd environment=prod experiment=lstm_checkpoint
 
-# Анализ качества прогнозов production модели
+dl-experiments-prd-ticker:
+	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_experiments mode=prd environment=prod experiment=lstm_checkpoint ticker=$(TICKER)
+
+# Анализ ошибок PRD
 dl-experiments-analysis:
-	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_experiments mode=analysis environment=prod
+	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_experiments mode=analysis environment=prod experiment=lstm_checkpoint
 
-# Демонстрация работы production модели
+dl-experiments-analysis-ticker:
+	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_experiments mode=analysis environment=prod experiment=lstm_checkpoint ticker=$(TICKER)
+
+# Демонстрация PRD (все тикеры)
 dl-demonstration:
-	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_demonstration environment=prod
+	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_demonstration environment=prod experiment=lstm_checkpoint
+
+dl-demonstration-ticker:
+	$(RUN_WITH_ENV) uv run python -m stocks_dl.cli.dl_demonstration environment=prod experiment=lstm_checkpoint ticker=$(TICKER)

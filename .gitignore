@@ -228,7 +228,7 @@ mlruns/
 mlflow.db
 
 # Local docker compose data
-data
+./data
 
 # Local CLI apps for personal use
 .cli

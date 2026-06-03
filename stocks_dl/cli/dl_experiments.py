@@ -20,7 +20,7 @@ from stocks_dl.workflows.experiment_runner import (
     run_search,
     select_best_row,
 )
-from stocks_dl.workflows.inference import find_prd_run
+from stocks_dl.workflows.inference import find_prd_run, resolve_prd_test_df
 
 HYDRA_CONFIG_PATH = str(PKG_ROOT / 'conf')
 
@@ -87,7 +87,15 @@ def _run_analysis(
     else:
         _, prd_summary = find_prd_run(ticker, cfg.experiment_name, run_id=prd_run_id)
 
-    train_df, val_df, test_df = split_train_test(
+    test_df = resolve_prd_test_df(
+        ticker,
+        prd_run_id,
+        features_df,
+        test_size=data['test_size'],
+        val_size=data['val_size'],
+        runs_dir=cfg.paths.get('runs_dir'),
+    )
+    train_df, val_df, _ = split_train_test(
         features_df, TARGET_COLUMN, data['test_size'], data['val_size']
     )
     prd_source = pd.concat([train_df, val_df]).sort_values('begin').reset_index(drop=True)

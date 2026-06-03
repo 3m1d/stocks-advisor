@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +12,7 @@ import torch
 from mlflow.tracking import MlflowClient
 
 from stocks_dl.constants import TARGET_COLUMN
+from stocks_dl.paths import PKG_ROOT, runs_artifact_path
 from stocks_dl.training.dataset import (
     build_predictions_df,
     evaluate_model,
@@ -184,7 +188,14 @@ def predict_test_csv(
     model, checkpoint = load_prd_model(prd_run_id)
     seq_len = int(prd_summary['sequence_length'])
     batch_size = int(prd_summary['batch_size'])
-    test_df = _resolve_test_df(features_df, demo_csv, test_size=test_size, val_size=val_size)
+    test_df = _resolve_test_df(
+        features_df,
+        demo_csv,
+        test_size=test_size,
+        val_size=val_size,
+        ticker=ticker,
+        prd_run_id=prd_run_id,
+    )
     train_df, val_df = _prd_train_val_fallback(
         features_df, checkpoint, test_size=test_size, val_size=val_size, final_val_size=final_val_size
     )
@@ -200,18 +211,82 @@ def predict_test_csv(
     return predictions_df
 
 
+def _read_test_csv(path: Path) -> pd.DataFrame:
+    test_df = pd.read_csv(path)
+    if 'begin' in test_df.columns:
+        test_df['begin'] = pd.to_datetime(test_df['begin'])
+    return test_df
+
+
+def resolve_prd_test_df(
+    ticker: str,
+    prd_run_id: str,
+    features_df: pd.DataFrame,
+    *,
+    test_size: float,
+    val_size: float,
+    runs_dir: str | Path | None = None,
+) -> pd.DataFrame:
+    """Use the same test rows as the PRD run (local snapshot or MLflow artifact)."""
+    demo_name = f'demo_{ticker.lower()}_test.csv'
+    local_candidates = (
+        runs_artifact_path('prd', demo_name, runs_dir=runs_dir, mkdir=False),
+        PKG_ROOT / demo_name,
+    )
+    for path in local_candidates:
+        if path.exists():
+            print(f'[{ticker}] PRD test snapshot: {path}')
+            return _read_test_csv(path)
+
+    try:
+        from mlflow.artifacts import download_artifacts
+
+        remote = download_artifacts(run_id=prd_run_id, artifact_path=demo_name)
+        remote_path = Path(remote)
+        if remote_path.is_dir():
+            files = list(remote_path.glob('*.csv'))
+            if not files:
+                raise FileNotFoundError(demo_name)
+            remote_path = files[0]
+        cache_path = runs_artifact_path('prd', demo_name, runs_dir=runs_dir)
+        cache_path.write_text(remote_path.read_text(encoding='utf-8'), encoding='utf-8')
+        print(f'[{ticker}] PRD test snapshot from MLflow → {cache_path}')
+        return _read_test_csv(cache_path)
+    except Exception as exc:
+        warnings.warn(
+            f'[{ticker}] PRD test snapshot missing ({exc}). '
+            'Using a fresh chronological split; analysis plots may not match PRD. '
+            f'Re-run: make dl-experiments-prd TICKER={ticker}',
+            stacklevel=2,
+        )
+
+    _, _, test_df = split_train_test(
+        features_df.copy(), target_column=TARGET_COLUMN, test_size=test_size, val_size=val_size
+    )
+    return test_df
+
+
 def _resolve_test_df(
     features_df: pd.DataFrame,
     demo_csv: Path | str | None,
     *,
     test_size: float,
     val_size: float,
+    ticker: str | None = None,
+    prd_run_id: str | None = None,
+    runs_dir: str | Path | None = None,
 ) -> pd.DataFrame:
     if demo_csv and Path(demo_csv).exists():
-        test_df = pd.read_csv(demo_csv)
-        if 'begin' in test_df.columns:
-            test_df['begin'] = pd.to_datetime(test_df['begin'])
-        return test_df
+        return _read_test_csv(Path(demo_csv))
+    if ticker and prd_run_id:
+        return resolve_prd_test_df(
+            ticker,
+            prd_run_id,
+            features_df,
+            test_size=test_size,
+            val_size=val_size,
+            runs_dir=runs_dir,
+        )
     _, _, test_df = split_train_test(
         features_df.copy(), target_column=TARGET_COLUMN, test_size=test_size, val_size=val_size
     )
@@ -252,7 +327,14 @@ def run_demo_inference(
     seq_len = int(prd_summary['sequence_length'])
     batch_size = int(prd_summary['batch_size'])
 
-    test_df = _resolve_test_df(features_df, demo_csv, test_size=test_size, val_size=val_size)
+    test_df = _resolve_test_df(
+        features_df,
+        demo_csv,
+        test_size=test_size,
+        val_size=val_size,
+        ticker=ticker,
+        prd_run_id=prd_run_id,
+    )
     train_df, val_df = _prd_train_val_fallback(
         features_df, checkpoint, test_size=test_size, val_size=val_size, final_val_size=final_val_size
     )

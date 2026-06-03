@@ -132,9 +132,9 @@ def validation_epoch(model: StockLSTMRegressor, criterion: nn.Module,
     return val_loss, metrics, all_predictions, all_targets
 
 
-def train(model: StockLSTMRegressor, optimizer: torch.optim.Optimizer, 
-          scheduler: Optional[Any], train_loader: DataLoader, 
-          val_loader: DataLoader, num_epochs: int):
+def train(model: StockLSTMRegressor, optimizer: torch.optim.Optimizer,
+          scheduler: Optional[Any], train_loader: DataLoader,
+          val_loader: DataLoader, num_epochs: int, show_plots: bool = True):
     """Обучение регрессора"""
     train_losses, val_losses = [], []
     val_metrics = {
@@ -164,14 +164,19 @@ def train(model: StockLSTMRegressor, optimizer: torch.optim.Optimizer,
         for key in val_metrics:
             val_metrics[key].append(metrics[key])
         
-        plot_metrics(train_losses, val_losses, val_metrics)
-        
-        print(f'\nEpoch {epoch}/{num_epochs}:')
-        print(f'  Train Loss: {train_loss:.6f}')
-        print(f'  Val Loss:   {val_loss:.6f}')
-        print(f'  MAE:  {metrics["mae"]:.4f}%')
-        print(f'  RMSE: {metrics["rmse"]:.4f}%')
-        print(f'  R²:   {metrics["r2"]:.4f}')
-        print(f'  Dir Acc: {metrics["direction_accuracy"]:.4f}')
+        if show_plots:
+            plot_metrics(train_losses, val_losses, val_metrics)
+            print(f'\nEpoch {epoch}/{num_epochs}:')
+            print(f'  Train Loss: {train_loss:.6f}')
+            print(f'  Val Loss:   {val_loss:.6f}')
+            print(f'  MAE:  {metrics["mae"]:.4f}%')
+            print(f'  RMSE: {metrics["rmse"]:.4f}%')
+            print(f'  R²:   {metrics["r2"]:.4f}')
+            print(f'  Dir Acc: {metrics["direction_accuracy"]:.4f}')
+        else:
+            print(
+                f'Epoch {epoch}/{num_epochs}: train={train_loss:.6f} val={val_loss:.6f} '
+                f'mae={metrics["mae"]:.4f}% dir_acc={metrics["direction_accuracy"]:.4f}'
+            )
     
     return train_losses, val_losses, val_metrics

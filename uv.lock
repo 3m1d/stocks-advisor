@@ -4589,7 +4589,7 @@ wheels = [
 [[package]]
 name = "year-project"
 version = "0.1.0"
-source = { editable = "." }
+source = { virtual = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "aiomoex", version = "2.1.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },

@@ -12,15 +12,15 @@ import pandas as pd
 import torch
 from mlflow.tracking import MlflowClient
 
-from .constants import TARGET_COLUMN
-from .experiment_runner import build_model, get_device
-from .temporal_dataset import (
+from stocks_dl.constants import TARGET_COLUMN
+from stocks_dl.training.dataset import (
     build_predictions_df,
     evaluate_model,
     make_loaders,
     split_train_test,
     split_train_val,
 )
+from stocks_dl.workflows.experiment_runner import build_model, get_device
 
 
 def find_prd_run(

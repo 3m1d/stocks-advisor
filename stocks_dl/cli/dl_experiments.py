@@ -3,32 +3,32 @@
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
 
 import hydra
 import mlflow
 import pandas as pd
 from omegaconf import DictConfig
 
-from .constants import TARGET_COLUMN
-from .data_pipeline import (
+from stocks_dl.constants import TARGET_COLUMN
+from stocks_dl.data.pipeline import (
     attach_tonality,
     build_features_by_ticker,
     load_candles_by_ticker,
     load_enrichments,
 )
-from .env_setup import configure_environment
-from .error_analysis import run_error_analysis
-from .experiment_runner import (
+from stocks_dl.env_setup import configure_environment
+from stocks_dl.paths import PKG_ROOT
+from stocks_dl.training.dataset import split_train_test, split_train_val
+from stocks_dl.workflows.error_analysis import run_error_analysis
+from stocks_dl.workflows.experiment_runner import (
     load_summary_from_mlflow,
     run_prd,
     run_search,
     select_best_row,
 )
-from .inference import find_prd_run
-from .temporal_dataset import split_train_test, split_train_val
+from stocks_dl.workflows.inference import find_prd_run
 
-PACKAGE_DIR = Path(__file__).resolve().parent
+HYDRA_CONFIG_PATH = str(PKG_ROOT / 'conf')
 
 
 async def load_features(ticker: str) -> tuple[pd.DataFrame, pd.DataFrame | None]:
@@ -39,7 +39,7 @@ async def load_features(ticker: str) -> tuple[pd.DataFrame, pd.DataFrame | None]
     return features[ticker].copy(), enrichments
 
 
-@hydra.main(version_base=None, config_path='conf', config_name='config')
+@hydra.main(version_base=None, config_path=HYDRA_CONFIG_PATH, config_name='config')
 def main(cfg: DictConfig) -> None:
     configure_environment(cfg.environment, cfg.experiment_name)
     mlflow.set_experiment(cfg.experiment_name)
@@ -64,7 +64,7 @@ def main(cfg: DictConfig) -> None:
         return
 
     if mode == 'prd':
-        summary_path = PACKAGE_DIR / f'{cfg.ticker.lower()}_search_summary.csv'
+        summary_path = PKG_ROOT / f'{cfg.ticker.lower()}_search_summary.csv'
         if summary_path.exists():
             summary_df = pd.read_csv(summary_path)
         else:

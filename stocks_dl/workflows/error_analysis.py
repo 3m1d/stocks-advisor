@@ -9,10 +9,11 @@ import mlflow
 import numpy as np
 import pandas as pd
 
-from .constants import TARGET_COLUMN
-from .plotting import save_direction_confusion_matrix, save_prediction_plot
-from .temporal_dataset import build_predictions_df, evaluate_model, make_loaders, set_seed
-from .train import calculate_metrics
+from stocks_dl.constants import TARGET_COLUMN
+from stocks_dl.paths import PKG_ROOT
+from stocks_dl.training.dataset import build_predictions_df, evaluate_model, make_loaders, set_seed
+from stocks_dl.training.train import calculate_metrics
+from stocks_dl.viz.plotting import save_direction_confusion_matrix, save_prediction_plot
 
 LOW_AMPLITUDE_THRESHOLD = 0.5
 LARGE_MOVE_THRESHOLD = 3.0
@@ -251,8 +252,7 @@ def run_error_analysis(
         top_errors_df, error_summary_df, robustness_df, ticker
     )
 
-    mlflow_dir = Path(__file__).parent
-    save_prediction_plot(predictions_df, mlflow_dir / 'prd_predictions.png', f'{ticker} PRD predictions')
+    save_prediction_plot(predictions_df, PKG_ROOT / 'prd_predictions.png', f'{ticker} PRD predictions')
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)

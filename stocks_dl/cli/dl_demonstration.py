@@ -9,11 +9,12 @@ import hydra
 import matplotlib.pyplot as plt
 from omegaconf import DictConfig
 
-from .data_pipeline import attach_tonality, build_features_by_ticker, load_candles_by_ticker, load_enrichments
-from .env_setup import REPO_ROOT, configure_environment
-from .inference import run_demo_inference
+from stocks_dl.data.pipeline import attach_tonality, build_features_by_ticker, load_candles_by_ticker, load_enrichments
+from stocks_dl.env_setup import REPO_ROOT, configure_environment
+from stocks_dl.paths import PKG_ROOT
+from stocks_dl.workflows.inference import run_demo_inference
 
-PACKAGE_DIR = Path(__file__).resolve().parent
+HYDRA_CONFIG_PATH = str(PKG_ROOT / 'conf')
 
 
 async def load_features(ticker: str):
@@ -24,7 +25,7 @@ async def load_features(ticker: str):
     return features[ticker].copy()
 
 
-@hydra.main(version_base=None, config_path='conf', config_name='config')
+@hydra.main(version_base=None, config_path=HYDRA_CONFIG_PATH, config_name='config')
 def main(cfg: DictConfig) -> None:
     configure_environment(cfg.environment, cfg.experiment_name)
 

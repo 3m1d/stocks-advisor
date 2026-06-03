@@ -15,11 +15,10 @@ import pandas as pd
 import torch
 from torch import optim
 
-from .constants import DEFAULT_EXPERIMENT_NAME, DEFAULT_SEED, DEFAULT_TICKER, TARGET_COLUMN
-from .data_pipeline import build_data_provenance
-from .model import StockLSTMRegressor
-from .plotting import save_learning_curves, save_prediction_plot
-from .temporal_dataset import (
+from stocks_dl.constants import DEFAULT_EXPERIMENT_NAME, DEFAULT_SEED, DEFAULT_TICKER, TARGET_COLUMN
+from stocks_dl.data.pipeline import build_data_provenance
+from stocks_dl.paths import PKG_ROOT
+from stocks_dl.training.dataset import (
     build_predictions_df,
     evaluate_model,
     make_loaders,
@@ -27,7 +26,9 @@ from .temporal_dataset import (
     split_train_test,
     split_train_val,
 )
-from .train import train
+from stocks_dl.training.model import StockLSTMRegressor
+from stocks_dl.training.train import train
+from stocks_dl.viz.plotting import save_learning_curves, save_prediction_plot
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -179,7 +180,7 @@ def run_experiment(
         if stage == 'prd':
             demo_name = f"demo_{cfg['ticker'].lower()}_test.csv"
             test_df.to_csv(tmpdir / demo_name, index=False)
-            test_df.to_csv(Path(__file__).parent / demo_name, index=False)
+            test_df.to_csv(PKG_ROOT / demo_name, index=False)
 
         summary = {
             'run_id': run.info.run_id,
@@ -268,7 +269,7 @@ def run_search(
     summary_df = pd.DataFrame(rows).sort_values(
         ['val_direction_accuracy', 'val_r2', 'val_rmse'], ascending=[False, False, True]
     ).reset_index(drop=True)
-    out_csv = Path(__file__).parent / f'{ticker.lower()}_search_summary.csv'
+    out_csv = PKG_ROOT / f'{ticker.lower()}_search_summary.csv'
     summary_df.to_csv(out_csv, index=False)
     return summary_df
 

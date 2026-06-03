@@ -237,4 +237,6 @@ mlflow.db
 production.env
 basic_auth.ini
 
+# Run results
 *.png
+./outputs

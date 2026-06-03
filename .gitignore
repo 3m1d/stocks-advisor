@@ -236,3 +236,5 @@ data
 # Production envs
 production.env
 basic_auth.ini
+
+*.png

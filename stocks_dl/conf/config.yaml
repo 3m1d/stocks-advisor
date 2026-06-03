@@ -44,11 +44,13 @@ training:
   verbose: false
   suppress_mlflow_urls: true
 
-# --- Paths ---
+# --- Generated artifacts (not under stocks_dl package code) ---
 paths:
-  search_summary_template: '{ticker}_search_summary.csv'
-  demo_csv_template: demo_{ticker}_test.csv
-  demo_output_template: prd_demo_{ticker}_predictions.csv
+  runs_dir: stocks_dl_runs
+  search_summary_template: search/{ticker}_search_summary.csv
+  demo_csv_template: prd/demo_{ticker}_test.csv
+  demo_output_template: demo/prd_demo_{ticker}_predictions.csv
+  analysis_plot_template: analysis/{ticker}/prd_predictions.png
 
 # --- Demo CLI (used when mode is not in dl_experiments; dl_demonstration resolves per ticker) ---
 demo:

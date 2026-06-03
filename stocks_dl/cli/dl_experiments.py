@@ -7,7 +7,7 @@ import mlflow
 import pandas as pd
 from omegaconf import DictConfig
 
-from stocks_dl.cli.config_helpers import data_cfg, pkg_path, resolve_tickers, training_cfg
+from stocks_dl.cli.config_helpers import artifact_path, data_cfg, resolve_tickers, training_cfg
 from stocks_dl.constants import TARGET_COLUMN
 from stocks_dl.data.pipeline import load_features_multi
 from stocks_dl.env_setup import configure_environment
@@ -26,7 +26,7 @@ HYDRA_CONFIG_PATH = str(PKG_ROOT / 'conf')
 
 
 def _summary_path(cfg: DictConfig, ticker: str) -> pd.DataFrame | None:
-    path = pkg_path(cfg.paths.search_summary_template, ticker)
+    path = artifact_path(cfg, cfg.paths.search_summary_template, ticker)
     if path.exists():
         return pd.read_csv(path)
     return None

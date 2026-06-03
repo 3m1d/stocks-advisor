@@ -1,48 +1,52 @@
-# stocks_dl — LSTM pipeline (checkpoint 7)
+# DL модели
 
-## Layout
+Здесь расположен код для полного цикла обучения LSTM модели:
+
+- Загрузка готовых данных из БД
+- Генерация признаков
+- Перебор гиперпараметров
+- Обучение модели
+- Демонстрация работы модели
+- Анализ ошибок
+- Логгирование в MLFlow
+
+## Структура
 
 | Папка | Назначение |
 |-------|------------|
-| `cli/` | `dl_experiments`, `dl_demonstration` (Hydra entrypoints) |
-| `conf/` | Hydra: `config.yaml`, `environment/`, `experiment/` |
-| `data/` | PostgreSQL → features + tonality |
-| `training/` | LSTM model, train loop, dataset/splits |
-| `workflows/` | MLflow search/PRD, inference, error analysis |
-| `viz/` | Plots for MLflow and notebooks |
-| `artifacts/` | Download artifacts from MLflow runs |
+| `cli/` | Утилиты для обучения и демонстрации модели |
+| `conf/` | Hydra конфиги |
+| `data/` | Загрузка и обработка данных |
+| `training/` | Обучение модели |
+| `workflows/` | Запуск экспериментов, инференс анализ ошибок |
+| `viz/` | Отрисовка графиков |
+| `artifacts/` | Работа с артефактами из MLFlow |
 
-## Prod (SSH-туннель)
+## Запуск
 
-1. Прокинуть порты (`app/README.md`): MLflow `:5050`, MinIO `:9050`, PostgreSQL `:15432`.
-2. Создать `.env` из `.env.example`.
-3. `make mlflow-smoke-test-prod`
+### Запуск экспериментов
 
-## Hydra config
+Базовая команда:
 
-Главный файл: `conf/config.yaml`. Группы:
+```bash
+uv run python -m stocks_dl.cli.dl_experiments
+```
 
-- `environment=prod|local` — `APP_CONFIG` / БД
-- `experiment=lstm_checkpoint|sber_lstm_checkpoint` — имя MLflow experiment
-
-### Тикеры
-
-По умолчанию все пять: SBER, TCSG, GAZP, LKOH, ROSN.
+Можно переопределить
 
 ```bash
 # все тикеры из config
 make dl-experiments-search
+# Либо так: make dl-experiments-search tickers=all
 
 # один тикер
 make dl-experiments-search-ticker TICKER=GAZP
 
-# или напрямую
-uv run python -m stocks_dl.cli.dl_experiments mode=search ticker=GAZP
-uv run python -m stocks_dl.cli.dl_experiments mode=prd tickers=[SBER,GAZP]
-uv run python -m stocks_dl.cli.dl_experiments mode=analysis tickers=all
+# выбор определенного тикера, с определенной стадией
+uv run python -m stocks_dl.cli.dl_experiments mode=search ticker=GAZP # Перебор гиперпараметров для тикера GAZP
+uv run python -m stocks_dl.cli.dl_experiments mode=prd tickers=[SBER,GAZP] # Обучение модели по лучшим гиперпараметрам, тикеры SBER,GAZP
+uv run python -m stocks_dl.cli.dl_experiments mode=analysis tickers=all # Анализ ошибок модели, для всех тикеров
 ```
-
-`tickers=all` — то же, что `TICKERS_WITH_NEWS` в `data/pipeline.py`.
 
 ### Переопределения
 
@@ -56,10 +60,16 @@ uv run python -m stocks_dl.cli.dl_experiments \
   training.verbose=true
 ```
 
-Пути к артефактам (шаблоны в `paths.*`):
+Артефакты пишутся в **`stocks_dl_runs/`** (корень репо, не в пакет `stocks_dl/`):
 
-- `{ticker}_search_summary.csv` → `stocks_dl/`
-- `demo_{ticker}_test.csv`, `prd_demo_{ticker}_predictions.csv`
+| Подпапка | Содержимое |
+|----------|------------|
+| `search/` | `{ticker}_search_summary.csv` |
+| `prd/` | `demo_{ticker}_test.csv` (снимок test при PRD) |
+| `demo/` | `prd_demo_{ticker}_predictions.csv` + `.png` |
+| `analysis/{ticker}/` | `prd_predictions.png` (локальная копия из analysis) |
+
+Переопределение корня: `paths.runs_dir=my_outputs`
 
 Hydra пишет метаданные run в `outputs/dl/<mode>/<timestamp>/` (рабочая директория — корень репо, `hydra.job.chdir: false`).
 

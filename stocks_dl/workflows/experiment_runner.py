@@ -15,7 +15,7 @@ from torch import optim
 
 from stocks_dl.constants import DEFAULT_EXPERIMENT_NAME, DEFAULT_SEED, DEFAULT_TICKER, TARGET_COLUMN
 from stocks_dl.data.pipeline import build_data_provenance
-from stocks_dl.paths import PKG_ROOT
+from stocks_dl.paths import runs_artifact_path
 from stocks_dl.training.dataset import (
     build_predictions_df,
     evaluate_model,
@@ -176,7 +176,10 @@ def run_experiment(
         if stage == 'prd':
             demo_name = f'demo_{cfg["ticker"].lower()}_test.csv'
             test_df.to_csv(tmpdir / demo_name, index=False)
-            test_df.to_csv(PKG_ROOT / demo_name, index=False)
+            test_df.to_csv(
+                runs_artifact_path('prd', demo_name),
+                index=False,
+            )
 
         summary = {
             'run_id': run.info.run_id,
@@ -274,7 +277,7 @@ def run_search(
         .sort_values(['val_direction_accuracy', 'val_r2', 'val_rmse'], ascending=[False, False, True])
         .reset_index(drop=True)
     )
-    out_csv = PKG_ROOT / f'{ticker.lower()}_search_summary.csv'
+    out_csv = runs_artifact_path('search', f'{ticker.lower()}_search_summary.csv')
     summary_df.to_csv(out_csv, index=False)
     return summary_df
 

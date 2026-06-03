@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from stocks_dl.constants import TARGET_COLUMN
-from stocks_dl.paths import PKG_ROOT
+from stocks_dl.paths import runs_artifact_path
 from stocks_dl.training.dataset import (
     build_predictions_df,
     evaluate_model,
@@ -265,7 +265,11 @@ def run_error_analysis(
     )
     analysis_md = build_error_analysis_markdown(top_errors_df, error_summary_df, robustness_df, ticker)
 
-    save_prediction_plot(predictions_df, PKG_ROOT / 'prd_predictions.png', f'{ticker} PRD predictions')
+    save_prediction_plot(
+        predictions_df,
+        runs_artifact_path('analysis', ticker.lower(), 'prd_predictions.png'),
+        f'{ticker} PRD predictions',
+    )
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)

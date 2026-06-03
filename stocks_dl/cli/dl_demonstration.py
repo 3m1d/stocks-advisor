@@ -6,7 +6,7 @@ import hydra
 import matplotlib.pyplot as plt
 from omegaconf import DictConfig
 
-from stocks_dl.cli.config_helpers import data_cfg, pkg_path, resolve_tickers, training_cfg
+from stocks_dl.cli.config_helpers import artifact_path, data_cfg, resolve_tickers, training_cfg
 from stocks_dl.data.pipeline import load_features_multi
 from stocks_dl.env_setup import configure_environment
 from stocks_dl.paths import PKG_ROOT
@@ -35,8 +35,8 @@ def main(cfg: DictConfig) -> None:
 
     for ticker in tickers:
         features_df = features_by_ticker[ticker]
-        demo_csv = pkg_path(cfg.paths.demo_csv_template, ticker)
-        output_path = pkg_path(cfg.paths.demo_output_template, ticker)
+        demo_csv = artifact_path(cfg, cfg.paths.demo_csv_template, ticker)
+        output_path = artifact_path(cfg, cfg.paths.demo_output_template, ticker)
 
         print(f'\n=== [{ticker}] demo ===')
         result = run_demo_inference(

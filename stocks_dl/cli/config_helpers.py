@@ -1,11 +1,14 @@
+"""Resolve Hydra DictConfig into paths and ticker lists for DL CLIs."""
+
+from __future__ import annotations
+
 from pathlib import Path
 
 from omegaconf import DictConfig, OmegaConf
 
 from stocks_dl.constants import DEFAULT_TICKER
 from stocks_dl.data.pipeline import TICKERS_WITH_NEWS
-from stocks_dl.env_setup import REPO_ROOT
-from stocks_dl.paths import PKG_ROOT
+from stocks_dl.paths import get_runs_root, runs_artifact_path
 
 
 def resolve_tickers(cfg: DictConfig) -> list[str]:
@@ -24,16 +27,14 @@ def resolve_tickers(cfg: DictConfig) -> list[str]:
     return tickers
 
 
-def pkg_path(template: str, ticker: str) -> Path:
-    rel = template.format(ticker=ticker.lower())
-    path = Path(rel)
-    return path if path.is_absolute() else PKG_ROOT / rel
+def runs_root(cfg: DictConfig) -> Path:
+    return get_runs_root(cfg.paths.get('runs_dir'))
 
 
-def repo_path(template: str, ticker: str) -> Path:
+def artifact_path(cfg: DictConfig, template: str, ticker: str) -> Path:
+    """Path under ``paths.runs_dir`` from a template with ``{ticker}`` placeholder."""
     rel = template.format(ticker=ticker.lower())
-    path = Path(rel)
-    return path if path.is_absolute() else REPO_ROOT / rel
+    return runs_artifact_path(rel, runs_dir=cfg.paths.get('runs_dir'))
 
 
 def data_cfg(cfg: DictConfig) -> dict:

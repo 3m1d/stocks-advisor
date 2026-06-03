@@ -240,3 +240,4 @@ basic_auth.ini
 # Run results
 *.png
 /outputs/
+/stocks_dl_runs/

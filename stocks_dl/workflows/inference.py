@@ -17,6 +17,8 @@ from stocks_dl.training.dataset import (
     build_predictions_df,
     evaluate_model,
     make_loaders,
+    make_test_loader,
+    norm_stats_from_checkpoint,
     split_train_test,
     split_train_val,
 )
@@ -137,13 +139,35 @@ def filter_predictions_last_days(
 
 def predict_from_dataframes(
     model,
-    train_df: pd.DataFrame,
-    val_df: pd.DataFrame,
     test_df: pd.DataFrame,
     sequence_length: int,
     batch_size: int,
+    *,
+    checkpoint: dict | None = None,
+    train_df: pd.DataFrame | None = None,
+    val_df: pd.DataFrame | None = None,
 ) -> tuple[pd.DataFrame, dict]:
-    _, _, _, _, _, test_loader = make_loaders(train_df, val_df, test_df, sequence_length, batch_size)
+    """Run test inference. Uses checkpoint X_mean/X_std when available (PRD demo)."""
+    norm = norm_stats_from_checkpoint(checkpoint) if checkpoint else None
+    if norm is not None:
+        feature_names, X_mean, X_std = norm
+        test_loader = make_test_loader(
+            test_df,
+            sequence_length,
+            batch_size,
+            feature_names=feature_names,
+            X_mean=X_mean,
+            X_std=X_std,
+        )
+    else:
+        if train_df is None or val_df is None:
+            raise ValueError(
+                'PRD checkpoint has no feature_names/X_mean/X_std; '
+                'pass train_df and val_df or re-run PRD to log checkpoint.pt.'
+            )
+        _, _, _, _, _, test_loader = make_loaders(
+            train_df, val_df, test_df, sequence_length, batch_size
+        )
     metrics, y_true, y_pred = evaluate_model(model, test_loader)
     predictions_df = build_predictions_df(test_df, y_true, y_pred, sequence_length)
     return predictions_df, metrics
@@ -163,29 +187,61 @@ def predict_test_csv(
     if prd_run_id is None or prd_summary is None:
         prd_run_id, prd_summary = find_prd_run(ticker, experiment_name)
 
-    model, _ = load_prd_model(prd_run_id)
+    model, checkpoint = load_prd_model(prd_run_id)
     seq_len = int(prd_summary['sequence_length'])
     batch_size = int(prd_summary['batch_size'])
+    test_df = _resolve_test_df(
+        features_df, demo_csv, test_size=test_size, val_size=val_size
+    )
+    train_df, val_df = _prd_train_val_fallback(
+        features_df, checkpoint, test_size=test_size, val_size=val_size, final_val_size=final_val_size
+    )
+    predictions_df, _ = predict_from_dataframes(
+        model,
+        test_df,
+        seq_len,
+        batch_size,
+        checkpoint=checkpoint,
+        train_df=train_df,
+        val_df=val_df,
+    )
+    return predictions_df
 
-    demo_path = Path(demo_csv)
-    if demo_path.exists():
-        test_df = pd.read_csv(demo_path)
+
+def _resolve_test_df(
+    features_df: pd.DataFrame,
+    demo_csv: Path | str | None,
+    *,
+    test_size: float,
+    val_size: float,
+) -> pd.DataFrame:
+    if demo_csv and Path(demo_csv).exists():
+        test_df = pd.read_csv(demo_csv)
         if 'begin' in test_df.columns:
             test_df['begin'] = pd.to_datetime(test_df['begin'])
-        train_df, val_df, _ = split_train_test(
-            features_df, target_column=TARGET_COLUMN, test_size=test_size, val_size=val_size
-        )
-        prd_source = pd.concat([train_df, val_df]).sort_values('begin').reset_index(drop=True)
-        prd_train_df, prd_val_df = split_train_val(prd_source, TARGET_COLUMN, val_size=final_val_size)
-    else:
-        train_df, val_df, test_df = split_train_test(
-            features_df, target_column=TARGET_COLUMN, test_size=test_size, val_size=val_size
-        )
-        prd_source = pd.concat([train_df, val_df]).sort_values('begin').reset_index(drop=True)
-        prd_train_df, prd_val_df = split_train_val(prd_source, TARGET_COLUMN, val_size=final_val_size)
+        return test_df
+    _, _, test_df = split_train_test(
+        features_df.copy(), target_column=TARGET_COLUMN, test_size=test_size, val_size=val_size
+    )
+    return test_df
 
-    predictions_df, _ = predict_from_dataframes(model, prd_train_df, prd_val_df, test_df, seq_len, batch_size)
-    return predictions_df
+
+def _prd_train_val_fallback(
+    features_df: pd.DataFrame,
+    checkpoint: dict,
+    *,
+    test_size: float,
+    val_size: float,
+    final_val_size: float,
+) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
+    """Only needed when checkpoint lacks saved normalization stats."""
+    if norm_stats_from_checkpoint(checkpoint):
+        return None, None
+    train_df, val_df, _ = split_train_test(
+        features_df.copy(), target_column=TARGET_COLUMN, test_size=test_size, val_size=val_size
+    )
+    prd_source = pd.concat([train_df, val_df]).sort_values('begin').reset_index(drop=True)
+    return split_train_val(prd_source, TARGET_COLUMN, val_size=final_val_size)
 
 
 def run_demo_inference(
@@ -204,18 +260,20 @@ def run_demo_inference(
     seq_len = int(prd_summary['sequence_length'])
     batch_size = int(prd_summary['batch_size'])
 
-    train_df, val_df, test_df = split_train_test(
-        features_df.copy(), target_column=TARGET_COLUMN, test_size=test_size, val_size=val_size
+    test_df = _resolve_test_df(features_df, demo_csv, test_size=test_size, val_size=val_size)
+    train_df, val_df = _prd_train_val_fallback(
+        features_df, checkpoint, test_size=test_size, val_size=val_size, final_val_size=final_val_size
     )
-    prd_source = pd.concat([train_df, val_df]).sort_values('begin').reset_index(drop=True)
-    prd_train_df, prd_val_df = split_train_val(prd_source, TARGET_COLUMN, val_size=final_val_size)
 
-    if demo_csv and Path(demo_csv).exists():
-        test_df = pd.read_csv(demo_csv)
-        if 'begin' in test_df.columns:
-            test_df['begin'] = pd.to_datetime(test_df['begin'])
-
-    predictions_df, metrics = predict_from_dataframes(model, prd_train_df, prd_val_df, test_df, seq_len, batch_size)
+    predictions_df, metrics = predict_from_dataframes(
+        model,
+        test_df,
+        seq_len,
+        batch_size,
+        checkpoint=checkpoint,
+        train_df=train_df,
+        val_df=val_df,
+    )
     out = Path(output_path)
     predictions_df.to_csv(out, index=False)
     return {

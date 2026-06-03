@@ -103,6 +103,40 @@ def make_loaders(
     return train_dataset, val_dataset, test_dataset, train_loader, val_loader, test_loader
 
 
+def norm_stats_from_checkpoint(checkpoint: dict) -> tuple[list[str], np.ndarray, np.ndarray] | None:
+    """Normalization from PRD checkpoint (same scale as training)."""
+    feature_names = checkpoint.get('feature_names')
+    X_mean = checkpoint.get('X_mean')
+    X_std = checkpoint.get('X_std')
+    if not feature_names or X_mean is None or X_std is None:
+        return None
+    return list(feature_names), np.asarray(X_mean, dtype=np.float64), np.asarray(X_std, dtype=np.float64)
+
+
+def make_test_loader(
+    test_df: pd.DataFrame,
+    sequence_length: int,
+    batch_size: int,
+    feature_names: list[str],
+    X_mean: np.ndarray,
+    X_std: np.ndarray,
+    target_column: str = TARGET_COLUMN,
+) -> DataLoader:
+    """Test loader with fixed feature order and PRD normalization stats."""
+    missing = [c for c in feature_names if c not in test_df.columns]
+    if missing:
+        raise ValueError(
+            f'Test data missing {len(missing)} feature(s) from PRD checkpoint, '
+            f'e.g. {missing[:3]}'
+        )
+    test_X = test_df[feature_names]
+    test_y = test_df[target_column]
+    test_dataset = TemporalStockDataset(
+        test_X, test_y, sequence_length, mean=X_mean, std=X_std
+    )
+    return DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+
 @torch.no_grad()
 def evaluate_model(model, loader) -> tuple[dict, np.ndarray, np.ndarray]:
     device = next(model.parameters()).device

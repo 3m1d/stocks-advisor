@@ -11,7 +11,15 @@ import pandas as pd
 
 from stocks_dl.constants import TARGET_COLUMN
 from stocks_dl.paths import PKG_ROOT
-from stocks_dl.training.dataset import build_predictions_df, evaluate_model, make_loaders, set_seed
+from stocks_dl.training.dataset import (
+    build_predictions_df,
+    evaluate_model,
+    make_loaders,
+    make_test_loader,
+    norm_stats_from_checkpoint,
+    set_seed,
+)
+from stocks_dl.workflows.inference import load_prd_model
 from stocks_dl.training.train import calculate_metrics
 from stocks_dl.viz.plotting import save_direction_confusion_matrix, save_prediction_plot
 
@@ -156,6 +164,7 @@ def run_robustness_checks(
     sequence_length: int,
     batch_size: int,
     seed: int,
+    checkpoint: dict | None = None,
 ) -> pd.DataFrame:
     set_seed(seed)
     sentiment_cols = [col for col in test_df.columns if 'sentiment' in col]
@@ -171,12 +180,24 @@ def run_robustness_checks(
             }
         ),
     }
+    norm = norm_stats_from_checkpoint(checkpoint) if checkpoint else None
     rows = []
     for variant_name, transform in robust_variants.items():
         variant_test_df = transform(test_df.copy())
-        _, _, _, _, _, variant_loader = make_loaders(
-            prd_train_df, prd_val_df, variant_test_df, sequence_length, batch_size
-        )
+        if norm is not None:
+            feature_names, X_mean, X_std = norm
+            variant_loader = make_test_loader(
+                variant_test_df,
+                sequence_length,
+                batch_size,
+                feature_names=feature_names,
+                X_mean=X_mean,
+                X_std=X_std,
+            )
+        else:
+            _, _, _, _, _, variant_loader = make_loaders(
+                prd_train_df, prd_val_df, variant_test_df, sequence_length, batch_size
+            )
         variant_metrics, _, _ = evaluate_model(model, variant_loader)
         rows.append(
             {
@@ -200,15 +221,25 @@ def run_error_analysis(
     enrichments_df: pd.DataFrame | None = None,
     experiment_name: str | None = None,
 ) -> dict:
-    import mlflow.pytorch
-
-    analysis_model = mlflow.pytorch.load_model(f'runs:/{prd_run_id}/model')
+    analysis_model, checkpoint = load_prd_model(prd_run_id)
     seq_len = int(prd_run_summary['sequence_length'])
     batch_size = int(prd_run_summary['batch_size'])
 
-    _, _, _, _, _, test_loader = make_loaders(
-        prd_train_df, prd_val_df, test_df, seq_len, batch_size
-    )
+    norm = norm_stats_from_checkpoint(checkpoint)
+    if norm is not None:
+        feature_names, X_mean, X_std = norm
+        test_loader = make_test_loader(
+            test_df,
+            seq_len,
+            batch_size,
+            feature_names=feature_names,
+            X_mean=X_mean,
+            X_std=X_std,
+        )
+    else:
+        _, _, _, _, _, test_loader = make_loaders(
+            prd_train_df, prd_val_df, test_df, seq_len, batch_size
+        )
     prd_test_metrics, y_true, y_pred = evaluate_model(analysis_model, test_loader)
     predictions_df = build_predictions_df(test_df, y_true, y_pred, seq_len)
 
@@ -247,6 +278,7 @@ def run_error_analysis(
         seq_len,
         batch_size,
         int(prd_run_summary.get('seed', 42)),
+        checkpoint=checkpoint,
     )
     analysis_md = build_error_analysis_markdown(
         top_errors_df, error_summary_df, robustness_df, ticker

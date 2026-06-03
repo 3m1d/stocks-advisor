@@ -41,7 +41,11 @@ async def load_features(ticker: str) -> tuple[pd.DataFrame, pd.DataFrame | None]
 
 @hydra.main(version_base=None, config_path=HYDRA_CONFIG_PATH, config_name='config')
 def main(cfg: DictConfig) -> None:
-    configure_environment(cfg.environment, cfg.experiment_name)
+    configure_environment(
+        cfg.environment,
+        cfg.experiment_name,
+        suppress_mlflow_urls=cfg.training.get('suppress_mlflow_urls', True),
+    )
     mlflow.set_experiment(cfg.experiment_name)
 
     features_df, enrichments_df = asyncio.run(load_features(cfg.ticker))
@@ -59,6 +63,7 @@ def main(cfg: DictConfig) -> None:
             weight_decay=cfg.training.weight_decay,
             num_epochs=cfg.training.base_epochs,
             show_plots=cfg.training.show_plots,
+            verbose=cfg.training.verbose,
         )
         print(summary_df.head(10))
         return
@@ -79,6 +84,7 @@ def main(cfg: DictConfig) -> None:
             final_val_size=cfg.data.final_val_size,
             seed=cfg.seed,
             show_plots=cfg.training.show_plots,
+            verbose=cfg.training.verbose,
         )
         print('PRD run_id:', prd_run_id)
         print('Best search:', select_best_row(summary_df)['run_name'])

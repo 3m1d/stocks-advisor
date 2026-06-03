@@ -12,7 +12,7 @@ def find_analysis_run(
     ticker: str,
     experiment_name: str | None = None,
 ) -> str | None:
-    """Return latest analysis run linked to the given PRD run, if any."""
+    """Return latest analysis run linked to the given PRD model run."""
     experiment_ids = None
     if experiment_name:
         exp = mlflow.get_experiment_by_name(experiment_name)
@@ -35,7 +35,7 @@ def find_analysis_run(
 
 
 def download_artifact_file(run_id: str, artifact_path: str) -> Path | None:
-    """Download a single artifact path from a run; return local file path."""
+    """Download a single artifact path from a run, return local path"""
     from mlflow import artifacts
 
     try:

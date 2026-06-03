@@ -12,6 +12,10 @@ STOCKS_DL_DIR = Path(__file__).resolve().parent
 REPO_ROOT = STOCKS_DL_DIR.parent
 
 
+def suppress_mlflow_run_urls() -> None:
+    os.environ['MLFLOW_SUPPRESS_PRINTING_URL_TO_STDOUT'] = 'true'
+
+
 def ensure_paths() -> Path:
     """Ensure repo root is importable (legacy notebooks) and return it."""
     if str(REPO_ROOT) not in sys.path:
@@ -22,6 +26,8 @@ def ensure_paths() -> Path:
 def configure_environment(
     environment: str = 'prod',
     experiment_name: str | None = None,
+    *,
+    suppress_mlflow_urls: bool = True,
 ) -> None:
     ensure_paths()
     config_by_env = {
@@ -34,6 +40,8 @@ def configure_environment(
     os.chdir(REPO_ROOT)
     load_dotenv(REPO_ROOT / '.env')
     os.environ['APP_CONFIG'] = config_by_env[environment]
+    if suppress_mlflow_urls:
+        suppress_mlflow_run_urls()
 
     from app.config.settings import get_settings
 

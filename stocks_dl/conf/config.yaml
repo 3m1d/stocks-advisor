@@ -22,6 +22,8 @@ training:
   weight_decay: 0.01
   base_epochs: 8
   show_plots: false
+  verbose: false
+  suppress_mlflow_urls: true
 
 demo:
   csv_path: stocks_dl/demo_sber_test.csv

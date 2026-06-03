@@ -102,6 +102,7 @@ def run_experiment(
     stage: str = 'search',
     log_model: bool = False,
     show_plots: bool = False,
+    verbose: bool = False,
     data_provenance: dict | None = None,
     full_df: pd.DataFrame | None = None,
 ) -> tuple[dict, str]:
@@ -150,6 +151,7 @@ def run_experiment(
             val_loader=val_loader,
             num_epochs=cfg['num_epochs'],
             show_plots=show_plots,
+            verbose=verbose,
         )
         train_metrics, _, _ = evaluate_model(model, train_loader)
         val_metrics, _, _ = evaluate_model(model, val_loader)
@@ -234,6 +236,12 @@ def run_experiment(
             mlflow.pytorch.log_model(deepcopy(model).cpu(), 'model')
             mlflow.log_artifact(str(tmpdir / 'checkpoint.pt'))
 
+        if not verbose and not show_plots:
+            print(
+                f"[{cfg['run_name']}] val_dir_acc={summary['val_direction_accuracy']:.4f} "
+                f"test_dir_acc={summary['test_direction_accuracy']:.4f}"
+            )
+
         return summary, run.info.run_id
 
 
@@ -248,6 +256,7 @@ def run_search(
     weight_decay: float,
     num_epochs: int,
     show_plots: bool = False,
+    verbose: bool = False,
 ) -> pd.DataFrame:
     mlflow.set_experiment(experiment_name)
     train_df, val_df, test_df = split_train_test(
@@ -255,7 +264,10 @@ def run_search(
     )
     configs = build_hyperparameter_grid(ticker, seed, batch_size, weight_decay, num_epochs)
     rows = []
-    for cfg in configs:
+    total = len(configs)
+    for idx, cfg in enumerate(configs, start=1):
+        if not verbose and not show_plots:
+            print(f'Search {idx}/{total}: {cfg["run_name"]}', flush=True)
         summary, _ = run_experiment(
             cfg=cfg,
             train_df=train_df,
@@ -264,6 +276,7 @@ def run_search(
             stage='search',
             log_model=False,
             show_plots=show_plots,
+            verbose=verbose,
         )
         rows.append(summary)
     summary_df = pd.DataFrame(rows).sort_values(
@@ -283,6 +296,7 @@ def run_prd(
     final_val_size: float,
     seed: int,
     show_plots: bool = False,
+    verbose: bool = False,
 ) -> tuple[dict, str, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     mlflow.set_experiment(experiment_name)
     train_df, val_df, test_df = split_train_test(
@@ -319,6 +333,7 @@ def run_prd(
         stage='prd',
         log_model=True,
         show_plots=show_plots,
+        verbose=verbose,
         data_provenance=provenance,
         full_df=features_df,
     )

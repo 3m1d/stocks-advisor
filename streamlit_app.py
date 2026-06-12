@@ -142,37 +142,28 @@ def build_ticker_prediction_cached(ticker: str, fingerprint: str) -> dict | None
 def fetch_all_predictions() -> dict[str, dict | None]:
     results: dict[str, dict | None] = {}
 
-    with st.status('Подготовка прогнозов...', expanded=True) as status:
-        status.update(label='Загрузка данных...', state='running')
-        for ticker in TICKERS:
-            st.write(f'**{ticker}** — загрузка данных...')
-
+    with st.spinner('Загрузка данных...'):
         try:
             loaded_by_ticker = load_all_ticker_data_cached(TICKERS_KEY)
         except Exception as e:
             st.error(f'Ошибка загрузки данных: {e}')
             return dict.fromkeys(TICKERS)
 
+    with st.spinner('Прогнозирование...'):
         for ticker in TICKERS:
             loaded = loaded_by_ticker.get(ticker)
             if loaded is None:
                 results[ticker] = None
-                st.write(f'**{ticker}** — нет данных')
                 continue
 
             _, features_df = loaded
             fingerprint = _dataframe_fingerprint(features_df)
-
-            status.update(label=f'{ticker}: прогнозирование...', state='running')
-            st.write(f'**{ticker}** — прогнозирование...')
 
             try:
                 results[ticker] = build_ticker_prediction_cached(ticker, fingerprint)
             except Exception as e:
                 results[ticker] = None
                 st.error(f'{ticker}: {e}')
-
-        status.update(label='Готово', state='complete')
 
     return results
 

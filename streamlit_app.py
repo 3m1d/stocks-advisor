@@ -1,4 +1,5 @@
 import asyncio
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -46,7 +47,7 @@ HISTORY_PERIOD_OPTIONS: dict[str, int] = {
     '6 месяцев': 180,
 }
 DEFAULT_HISTORY_PERIOD = '1 месяц'
-MAX_CANDLES_LIMIT = max(HISTORY_PERIOD_OPTIONS.values()) * 12
+MAX_HISTORY_DAYS = max(HISTORY_PERIOD_OPTIONS.values())
 PREDICTION_DISK_CACHE = DiskCache(
     Path('.cache/streamlit/predictions'),
     ttl_seconds=PREDICTION_CACHE_TTL,
@@ -99,11 +100,12 @@ async def load_all_ticker_data(
 ) -> dict[str, tuple[pd.DataFrame, pd.DataFrame] | None]:
     """Загружает свечи и признаки для всех тикеров в одном event loop."""
     raw_by_ticker: dict[str, pd.DataFrame] = {}
+    history_start = (datetime.now(UTC) - timedelta(days=MAX_HISTORY_DAYS)).replace(tzinfo=None)
 
     async with get_db_session() as session:
         repo = AssetCandleRepository(session)
         for ticker in tickers:
-            raw_df = await repo.get_dataframe(ticker, MAX_CANDLES_LIMIT)
+            raw_df = await repo.get_dataframe(ticker, date_start=history_start)
             if not raw_df.empty:
                 raw_by_ticker[ticker] = raw_df
 
@@ -168,17 +170,15 @@ def predict_latest_price_change(data_ticker: str, features_df: pd.DataFrame) -> 
 
 
 def prepare_price_history(raw_df: pd.DataFrame, days: int) -> pd.DataFrame:
-    feature_gen = FeatureGenerator()
-    processed_df = feature_gen.process(df=raw_df, include_original=True)
-    if processed_df.empty:
-        return processed_df
+    if raw_df.empty:
+        return raw_df
 
-    processed_df = processed_df.copy()
-    processed_df['begin'] = pd.to_datetime(processed_df['begin'])
-    cutoff = processed_df['begin'].max() - pd.Timedelta(days=days)
+    history = raw_df.copy()
+    history['begin'] = pd.to_datetime(history['begin'])
+    history = history.sort_values('begin')
+    cutoff = history['begin'].max() - pd.Timedelta(days=days)
     return (
-        processed_df.loc[processed_df['begin'] >= cutoff, ['begin', 'close']]
-        .sort_values('begin')
+        history.loc[history['begin'] >= cutoff, ['begin', 'close']]
         .reset_index(drop=True)
     )
 
@@ -282,6 +282,10 @@ def display_recommendation(price_change: float) -> None:
         st.warning(label)
 
 
+def _format_chart_date(value) -> str:
+    return pd.to_datetime(value).strftime('%d.%m.%Y')
+
+
 def render_price_chart(
     prediction: dict,
     history: pd.DataFrame,
@@ -291,6 +295,15 @@ def render_price_chart(
 ) -> None:
     current_date = pd.to_datetime(prediction['current_date'])
     future_date = pd.to_datetime(prediction['future_date'])
+    current_price = float(prediction['current_price'])
+    predicted_price = float(prediction['predicted_price'])
+
+    last_history_row = history.iloc[-1]
+    last_history_date = pd.to_datetime(last_history_row['begin'])
+    last_history_price = float(last_history_row['close'])
+    last_history_label = _format_chart_date(last_history_date)
+    future_label = _format_chart_date(future_date)
+    label_font_size = 9 if compact else 11
 
     fig = go.Figure()
     fig.add_trace(
@@ -300,16 +313,37 @@ def render_price_chart(
             mode='lines',
             name='История',
             line={'color': '#2563eb', 'width': 2},
+            hovertemplate='%{x|%d.%m.%Y}<br>%{y:.2f} ₽<extra>История</extra>',
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[last_history_date],
+            y=[last_history_price],
+            mode='markers+text',
+            name='Последняя цена',
+            marker={'color': '#2563eb', 'size': 9 if compact else 10, 'symbol': 'circle'},
+            text=[last_history_label],
+            textposition='top center',
+            textfont={'size': label_font_size, 'color': '#2563eb'},
+            hovertemplate=(
+                f'Последняя цена<br>{last_history_label}<br>{last_history_price:.2f} ₽<extra></extra>'
+            ),
+            showlegend=False,
         )
     )
     fig.add_trace(
         go.Scatter(
             x=[current_date, future_date],
-            y=[prediction['current_price'], prediction['predicted_price']],
-            mode='lines+markers',
+            y=[current_price, predicted_price],
+            mode='lines+markers+text',
             name='Прогноз (+7 дн.)',
             line={'color': '#f97316', 'width': 2, 'dash': 'dash'},
-            marker={'size': 8},
+            marker={'size': 8, 'color': '#f97316'},
+            text=['', future_label],
+            textposition=['top center', 'top center'],
+            textfont={'size': label_font_size, 'color': '#f97316'},
+            hovertemplate='%{x|%d.%m.%Y}<br>%{y:.2f} ₽<extra>Прогноз</extra>',
         )
     )
     fig.update_layout(
@@ -318,7 +352,7 @@ def render_price_chart(
         margin={
             'l': 4,
             'r': 4,
-            't': 8 if compact else 16,
+            't': 24 if compact else 32,
             'b': 4 if compact else 48,
         },
         showlegend=not compact,

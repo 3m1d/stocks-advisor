@@ -104,7 +104,7 @@ docker-restart: docker-down docker-up
 # Запуск с production конфигом
 docker-up-prod:
 	mkdir -p data/minio_data_production
-	$(COMPOSE_PROD) up -d --build
+	$(COMPOSE_PROD) up -d
 
 docker-down-prod:
 	$(COMPOSE_PROD) down

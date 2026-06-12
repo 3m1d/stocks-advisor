@@ -21,6 +21,7 @@ from stocks_dl.workflows.inference import (
 )
 
 TICKERS = ['SBER', 'GAZP', 'LKOH', 'ROSN', 'T']
+TICKER_OPTIONS = ['Все', *TICKERS]
 TICKERS_KEY = tuple(TICKERS)
 # T — новый тикер Т-Банка; PRD-модель и новости обучались на TCSG
 MODEL_TICKER_BY_DATA_TICKER: dict[str, str] = {'T': 'TCSG'}
@@ -209,16 +210,31 @@ def fetch_all_predictions() -> tuple[dict[str, dict | None], dict[str, tuple[pd.
     return results, loaded_by_ticker
 
 
-def display_recommendation(price_change: float) -> None:
+def recommendation_label(price_change: float) -> str:
     if price_change > 1.0:
-        st.success('Покупать')
+        return 'Покупать'
+    if price_change < -1.0:
+        return 'Продавать'
+    return 'Держать'
+
+
+def display_recommendation(price_change: float) -> None:
+    label = recommendation_label(price_change)
+    if price_change > 1.0:
+        st.success(label)
     elif price_change < -1.0:
-        st.error('Продавать')
+        st.error(label)
     else:
-        st.warning('Держать')
+        st.warning(label)
 
 
-def render_price_chart(prediction: dict, history: pd.DataFrame) -> None:
+def render_price_chart(
+    prediction: dict,
+    history: pd.DataFrame,
+    *,
+    height: int = 320,
+    compact: bool = False,
+) -> None:
     current_date = pd.to_datetime(prediction['current_date'])
     future_date = pd.to_datetime(prediction['future_date'])
 
@@ -244,14 +260,19 @@ def render_price_chart(prediction: dict, history: pd.DataFrame) -> None:
     )
     fig.update_layout(
         template='streamlit',
-        height=320,
-        margin={'l': 8, 'r': 8, 't': 32, 'b': 8},
+        height=height,
+        margin={'l': 4, 'r': 4, 't': 8 if compact else 32, 'b': 4},
+        showlegend=not compact,
         legend={'orientation': 'h', 'yanchor': 'bottom', 'y': 1.02, 'xanchor': 'right', 'x': 1},
-        xaxis={'title': None, 'showgrid': True},
-        yaxis={'title': 'Цена, ₽', 'showgrid': True, 'tickformat': '.2f'},
+        xaxis={'title': None, 'showgrid': True, 'showticklabels': not compact},
+        yaxis={
+            'title': None if compact else 'Цена, ₽',
+            'showgrid': True,
+            'tickformat': '.2f',
+        },
         hovermode='x unified',
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': not compact})
 
 
 def render_ticker_card(
@@ -290,6 +311,50 @@ def render_ticker_card(
     display_recommendation(prediction['predicted_price_change'])
 
 
+def render_ticker_compact(
+    ticker: str,
+    prediction: dict | None,
+    raw_df: pd.DataFrame | None,
+) -> None:
+    st.markdown(f'**{ticker}**')
+
+    if not prediction:
+        st.caption('Нет данных')
+        return
+
+    if raw_df is None or raw_df.empty:
+        st.caption('Нет истории цен')
+        return
+
+    history = prepare_price_history(raw_df)
+    if history.empty:
+        st.caption('Нет истории цен')
+        return
+
+    render_price_chart(prediction, history, height=160, compact=True)
+
+    change = prediction['predicted_price_change']
+    st.caption(
+        f'{prediction["current_price"]:.2f} ₽ → {prediction["predicted_price"]:.2f} ₽ ({change:+.2f}%)'
+    )
+    display_recommendation(change)
+
+
+def render_all_tickers(
+    all_predictions: dict[str, dict | None],
+    loaded_by_ticker: dict[str, tuple[pd.DataFrame, pd.DataFrame] | None],
+) -> None:
+    cols_per_row = 3
+    for row_start in range(0, len(TICKERS), cols_per_row):
+        row_tickers = TICKERS[row_start : row_start + cols_per_row]
+        columns = st.columns(len(row_tickers))
+        for column, ticker in zip(columns, row_tickers, strict=True):
+            loaded = loaded_by_ticker.get(ticker)
+            raw_df = loaded[0] if loaded else None
+            with column:
+                render_ticker_compact(ticker, all_predictions[ticker], raw_df)
+
+
 def main():
     st.set_page_config(
         page_title='Финансовый советник',
@@ -300,13 +365,16 @@ def main():
     st.title('Прогнозирование стоимости акций')
     st.markdown('### Прогноз на неделю')
 
-    selected_ticker = st.sidebar.selectbox('Тикер', TICKERS, index=0)
+    selected_ticker = st.sidebar.selectbox('Тикер', TICKER_OPTIONS, index=0)
 
     all_predictions, loaded_by_ticker = fetch_all_predictions()
 
-    loaded = loaded_by_ticker.get(selected_ticker)
-    raw_df = loaded[0] if loaded else None
-    render_ticker_card(selected_ticker, all_predictions[selected_ticker], raw_df)
+    if selected_ticker == 'Все':
+        render_all_tickers(all_predictions, loaded_by_ticker)
+    else:
+        loaded = loaded_by_ticker.get(selected_ticker)
+        raw_df = loaded[0] if loaded else None
+        render_ticker_card(selected_ticker, all_predictions[selected_ticker], raw_df)
 
 
 if __name__ == '__main__':

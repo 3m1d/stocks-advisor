@@ -293,9 +293,7 @@ def render_price_chart(
     height: int = 320,
     compact: bool = False,
 ) -> None:
-    current_date = pd.to_datetime(prediction['current_date'])
     future_date = pd.to_datetime(prediction['future_date'])
-    current_price = float(prediction['current_price'])
     predicted_price = float(prediction['predicted_price'])
 
     last_history_row = history.iloc[-1]
@@ -334,16 +332,26 @@ def render_price_chart(
     )
     fig.add_trace(
         go.Scatter(
-            x=[current_date, future_date],
-            y=[current_price, predicted_price],
-            mode='lines+markers+text',
+            x=[last_history_date, future_date],
+            y=[last_history_price, predicted_price],
+            mode='lines',
             name='Прогноз (+7 дн.)',
             line={'color': '#f97316', 'width': 2, 'dash': 'dash'},
-            marker={'size': 8, 'color': '#f97316'},
-            text=['', future_label],
-            textposition=['top center', 'top center'],
-            textfont={'size': label_font_size, 'color': '#f97316'},
             hovertemplate='%{x|%d.%m.%Y}<br>%{y:.2f} ₽<extra>Прогноз</extra>',
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[future_date],
+            y=[predicted_price],
+            mode='markers+text',
+            name='Прогноз (+7 дн.)',
+            marker={'size': 8, 'color': '#f97316'},
+            text=[future_label],
+            textposition='top center',
+            textfont={'size': label_font_size, 'color': '#f97316'},
+            hovertemplate=f'Прогноз<br>{future_label}<br>{predicted_price:.2f} ₽<extra></extra>',
+            showlegend=False,
         )
     )
     fig.update_layout(
@@ -401,7 +409,11 @@ def render_ticker_card(
 
     col_current, col_forecast = st.columns(2)
     with col_current:
-        st.metric(label='Текущая цена', value=f'{prediction["current_price"]:.2f} ₽')
+        current_label = pd.to_datetime(prediction['current_date']).strftime('%d.%m.%Y')
+        st.metric(
+            label=f'Текущая цена на {current_label}',
+            value=f'{prediction["current_price"]:.2f} ₽',
+        )
     with col_forecast:
         future_label = pd.to_datetime(prediction['future_date']).strftime('%d.%m.%Y')
         st.metric(

@@ -28,7 +28,14 @@ MODEL_TICKER_BY_DATA_TICKER: dict[str, str] = {'T': 'TCSG'}
 EXPERIMENT_NAME = DEFAULT_EXPERIMENT_NAME
 DB_CACHE_TTL = 3600
 PREDICTION_CACHE_TTL = 3600
-HISTORY_DAYS = 30
+HISTORY_PERIOD_OPTIONS: dict[str, int] = {
+    '2 недели': 14,
+    '1 месяц': 30,
+    '3 месяца': 90,
+    '6 месяцев': 180,
+}
+DEFAULT_HISTORY_PERIOD = '1 месяц'
+MAX_CANDLES_LIMIT = max(HISTORY_PERIOD_OPTIONS.values()) * 12
 
 
 def resolve_model_ticker(data_ticker: str) -> str:
@@ -66,7 +73,7 @@ async def load_all_ticker_data(
     async with get_db_session() as session:
         repo = AssetCandleRepository(session)
         for ticker in tickers:
-            raw_df = await repo.get_dataframe(ticker, 1000)
+            raw_df = await repo.get_dataframe(ticker, MAX_CANDLES_LIMIT)
             if not raw_df.empty:
                 raw_by_ticker[ticker] = raw_df
 
@@ -126,7 +133,7 @@ def predict_latest_price_change(data_ticker: str, features_df: pd.DataFrame) -> 
     return float(predictions_df.iloc[-1]['predict'])
 
 
-def prepare_price_history(raw_df: pd.DataFrame, days: int = HISTORY_DAYS) -> pd.DataFrame:
+def prepare_price_history(raw_df: pd.DataFrame, days: int) -> pd.DataFrame:
     feature_gen = FeatureGenerator()
     processed_df = feature_gen.process(df=raw_df, include_original=True)
     if processed_df.empty:
@@ -283,13 +290,14 @@ def render_price_chart(
         },
         hovermode='x unified',
     )
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': not compact})
+    st.plotly_chart(fig, width='stretch', config={'displayModeBar': not compact})
 
 
 def render_ticker_card(
     ticker: str,
     prediction: dict | None,
     raw_df: pd.DataFrame | None,
+    history_days: int,
 ) -> None:
     st.subheader(ticker)
 
@@ -301,7 +309,7 @@ def render_ticker_card(
         st.warning('Нет истории цен')
         return
 
-    history = prepare_price_history(raw_df)
+    history = prepare_price_history(raw_df, history_days)
     if history.empty:
         st.warning('Нет истории цен')
         return
@@ -326,6 +334,7 @@ def render_ticker_compact(
     ticker: str,
     prediction: dict | None,
     raw_df: pd.DataFrame | None,
+    history_days: int,
 ) -> None:
     st.markdown(f'**{ticker}**')
 
@@ -337,7 +346,7 @@ def render_ticker_compact(
         st.caption('Нет истории цен')
         return
 
-    history = prepare_price_history(raw_df)
+    history = prepare_price_history(raw_df, history_days)
     if history.empty:
         st.caption('Нет истории цен')
         return
@@ -345,15 +354,14 @@ def render_ticker_compact(
     render_price_chart(prediction, history, height=160, compact=True)
 
     change = prediction['predicted_price_change']
-    st.caption(
-        f'{prediction["current_price"]:.2f} ₽ → {prediction["predicted_price"]:.2f} ₽ ({change:+.2f}%)'
-    )
+    st.caption(f'{prediction["current_price"]:.2f} ₽ → {prediction["predicted_price"]:.2f} ₽ ({change:+.2f}%)')
     display_recommendation(change)
 
 
 def render_all_tickers(
     all_predictions: dict[str, dict | None],
     loaded_by_ticker: dict[str, tuple[pd.DataFrame, pd.DataFrame] | None],
+    history_days: int,
 ) -> None:
     cols_per_row = 3
     for row_start in range(0, len(TICKERS), cols_per_row):
@@ -363,7 +371,7 @@ def render_all_tickers(
             loaded = loaded_by_ticker.get(ticker)
             raw_df = loaded[0] if loaded else None
             with column:
-                render_ticker_compact(ticker, all_predictions[ticker], raw_df)
+                render_ticker_compact(ticker, all_predictions[ticker], raw_df, history_days)
 
 
 def main():
@@ -377,15 +385,21 @@ def main():
     st.markdown('### Прогноз на неделю')
 
     selected_ticker = st.sidebar.selectbox('Тикер', TICKER_OPTIONS, index=0)
+    selected_period = st.sidebar.selectbox(
+        'Период графика',
+        list(HISTORY_PERIOD_OPTIONS.keys()),
+        index=list(HISTORY_PERIOD_OPTIONS.keys()).index(DEFAULT_HISTORY_PERIOD),
+    )
+    history_days = HISTORY_PERIOD_OPTIONS[selected_period]
 
     all_predictions, loaded_by_ticker = fetch_all_predictions()
 
     if selected_ticker == 'Все':
-        render_all_tickers(all_predictions, loaded_by_ticker)
+        render_all_tickers(all_predictions, loaded_by_ticker, history_days)
     else:
         loaded = loaded_by_ticker.get(selected_ticker)
         raw_df = loaded[0] if loaded else None
-        render_ticker_card(selected_ticker, all_predictions[selected_ticker], raw_df)
+        render_ticker_card(selected_ticker, all_predictions[selected_ticker], raw_df, history_days)
 
 
 if __name__ == '__main__':

@@ -8,7 +8,11 @@ from app.core.database import AssetCandleRepository, get_db_session
 from app.core.processors.feature_generator import FeatureGenerator
 from app.mlflow import configure_mlflow
 from stocks_dl.constants import DEFAULT_EXPERIMENT_NAME
-from stocks_dl.data.pipeline import load_features_bundle_multi
+from stocks_dl.data.pipeline import (
+    NEWS_HORIZONS_HOURS,
+    load_features_bundle_multi,
+    merge_tonality_with_prices,
+)
 from stocks_dl.workflows.inference import (
     _prd_train_val_fallback,
     find_prd_run,
@@ -16,12 +20,18 @@ from stocks_dl.workflows.inference import (
     predict_from_dataframes,
 )
 
-TICKERS = ['SBER', 'GAZP', 'LKOH', 'ROSN', 'TCSG']
+TICKERS = ['SBER', 'GAZP', 'LKOH', 'ROSN', 'T']
 TICKERS_KEY = tuple(TICKERS)
+# T — новый тикер Т-Банка; PRD-модель и новости обучались на TCSG
+MODEL_TICKER_BY_DATA_TICKER: dict[str, str] = {'T': 'TCSG'}
 EXPERIMENT_NAME = DEFAULT_EXPERIMENT_NAME
 DB_CACHE_TTL = 3600
 PREDICTION_CACHE_TTL = 3600
 HISTORY_DAYS = 30
+
+
+def resolve_model_ticker(data_ticker: str) -> str:
+    return MODEL_TICKER_BY_DATA_TICKER.get(data_ticker, data_ticker)
 
 
 @st.cache_resource
@@ -60,6 +70,7 @@ async def load_all_ticker_data(
                 raw_by_ticker[ticker] = raw_df
 
     features_by_ticker = await load_features_bundle_multi(tickers)
+    enrichments = features_by_ticker['_enrichments']
 
     loaded: dict[str, tuple[pd.DataFrame, pd.DataFrame] | None] = {}
     for ticker in tickers:
@@ -67,8 +78,18 @@ async def load_all_ticker_data(
         features_df = features_by_ticker.get(ticker)
         if raw_df is None or features_df is None or features_df.empty:
             loaded[ticker] = None
-        else:
-            loaded[ticker] = (raw_df, features_df)
+            continue
+
+        if ticker in MODEL_TICKER_BY_DATA_TICKER:
+            news_ticker = MODEL_TICKER_BY_DATA_TICKER[ticker]
+            features_df = merge_tonality_with_prices(
+                news_ticker,
+                features_df,
+                enrichments,
+                NEWS_HORIZONS_HOURS,
+            ).fillna(0)
+
+        loaded[ticker] = (raw_df, features_df)
     return loaded
 
 
@@ -77,9 +98,10 @@ def load_all_ticker_data_cached(tickers: tuple[str, ...]) -> dict[str, tuple[pd.
     return asyncio.run(load_all_ticker_data(list(tickers)))
 
 
-def predict_latest_price_change(ticker: str, features_df: pd.DataFrame) -> float:
+def predict_latest_price_change(data_ticker: str, features_df: pd.DataFrame) -> float:
     """Прогноз изменения цены (%) на последней доступной точке."""
-    model, checkpoint, prd_summary, _ = load_best_prd_model_from_mlflow(ticker)
+    model_ticker = resolve_model_ticker(data_ticker)
+    model, checkpoint, prd_summary, _ = load_best_prd_model_from_mlflow(model_ticker)
     seq_len = int(prd_summary['sequence_length'])
     batch_size = int(prd_summary['batch_size'])
 

@@ -86,7 +86,7 @@ streamlit-run:
 # Docker
 ###############
 
-.PHONY: docker-up docker-down docker-restart docker-up-prod docker-down-prod docker-logs-prod docker-clean-volumes
+.PHONY: docker-up docker-down docker-restart docker-up-prod docker-down-prod docker-logs-prod docker-build-streamlit-prod docker-clean-volumes
 
 COMPOSE_PROD = docker compose -f docker-compose-production.yml --env-file production.env
 
@@ -110,7 +110,11 @@ docker-down-prod:
 	$(COMPOSE_PROD) down
 
 docker-logs-prod:
-	$(COMPOSE_PROD) logs -f minio mlflow-service
+	$(COMPOSE_PROD) logs -f minio mlflow-service streamlit
+
+# Собрать только Streamlit-образ production
+docker-build-streamlit-prod:
+	$(COMPOSE_PROD) build streamlit
 
 # Остановить docker контейнеры и удалить volumes, указанные в docker-compose.yml.
 # Полезно, если нужно очистить тестовые данные в БД.

@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -7,6 +8,7 @@ import streamlit as st
 from app.core.database import AssetCandleRepository, get_db_session
 from app.core.processors.feature_generator import FeatureGenerator
 from app.mlflow import configure_mlflow
+from app.utils.disk_cache import DiskCache
 from stocks_dl.constants import DEFAULT_EXPERIMENT_NAME
 from stocks_dl.data.pipeline import (
     NEWS_HORIZONS_HOURS,
@@ -36,6 +38,10 @@ HISTORY_PERIOD_OPTIONS: dict[str, int] = {
 }
 DEFAULT_HISTORY_PERIOD = '1 месяц'
 MAX_CANDLES_LIMIT = max(HISTORY_PERIOD_OPTIONS.values()) * 12
+PREDICTION_DISK_CACHE = DiskCache(
+    Path('.cache/streamlit/predictions'),
+    ttl_seconds=PREDICTION_CACHE_TTL,
+)
 
 
 def resolve_model_ticker(data_ticker: str) -> str:
@@ -177,14 +183,25 @@ def build_ticker_prediction(
     }
 
 
-@st.cache_data(ttl=PREDICTION_CACHE_TTL, show_spinner=False)
-def build_ticker_prediction_cached(ticker: str, fingerprint: str) -> dict | None:
-    loaded = load_all_ticker_data_cached(TICKERS_KEY)
-    item = loaded.get(ticker)
-    if item is None:
-        return None
-    raw_df, features_df = item
-    return build_ticker_prediction(ticker, raw_df, features_df)
+def _prediction_cache_key(ticker: str, fingerprint: str) -> str:
+    return f'{ticker}:{fingerprint}'
+
+
+def get_ticker_prediction_cached(
+    ticker: str,
+    fingerprint: str,
+    raw_df: pd.DataFrame,
+    features_df: pd.DataFrame,
+) -> dict | None:
+    cache_key = _prediction_cache_key(ticker, fingerprint)
+    cached = PREDICTION_DISK_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
+    result = build_ticker_prediction(ticker, raw_df, features_df)
+    if result is not None:
+        PREDICTION_DISK_CACHE.set(cache_key, result)
+    return result
 
 
 def fetch_all_predictions() -> tuple[dict[str, dict | None], dict[str, tuple[pd.DataFrame, pd.DataFrame] | None]]:
@@ -205,11 +222,11 @@ def fetch_all_predictions() -> tuple[dict[str, dict | None], dict[str, tuple[pd.
                 results[ticker] = None
                 continue
 
-            _, features_df = loaded
+            raw_df, features_df = loaded
             fingerprint = _dataframe_fingerprint(features_df)
 
             try:
-                results[ticker] = build_ticker_prediction_cached(ticker, fingerprint)
+                results[ticker] = get_ticker_prediction_cached(ticker, fingerprint, raw_df, features_df)
             except Exception as e:
                 results[ticker] = None
                 st.error(f'{ticker}: {e}')

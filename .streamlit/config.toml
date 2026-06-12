@@ -1,0 +1,10 @@
+[server]
+# polling вместо inotify/watchdog — иначе на большом репозитории упираемся
+# в fs.inotify.max_user_watches (OSError: [Errno 28] inotify watch limit reached).
+fileWatcherType = "poll"
+
+folderWatchBlacklist = [
+    "**/.cache",
+    "**/.git",
+    "**/data",
+]

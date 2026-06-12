@@ -76,7 +76,7 @@ fastapi-run-dev:
 # Запустить Streamlit UI дашборд
 # Конфиг БД берется из .env файла или переменных окружения.
 streamlit-run-prod:
-	$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run streamlit run streamlit_app.py
+	$(RUN_WITH_ENV) APP_CONFIG=config.toml STREAMLIT_SERVER_FILE_WATCHER_TYPE=none uv run streamlit run streamlit_app.py
 
 # Запустить Streamlit UI дашборд с локальной БД
 streamlit-run:

@@ -9,11 +9,20 @@ from app.core.database import AssetCandleRepository, get_db_session
 from app.core.processors.feature_generator import FeatureGenerator
 from app.mlflow import configure_mlflow
 from app.utils.disk_cache import DiskCache
-from stocks_dl.constants import DEFAULT_EXPERIMENT_NAME
+from stocks_dl.constants import (
+    CATBOOST_EXPERIMENT_NAME,
+    DEFAULT_EXPERIMENT_NAME,
+    LSTM_EXPERIMENT_NAME,
+)
 from stocks_dl.data.pipeline import (
     NEWS_HORIZONS_HOURS,
     load_features_bundle_multi,
     merge_tonality_with_prices,
+)
+from stocks_dl.workflows.catboost_inference import (
+    find_catboost_run,
+    load_catboost_model,
+    predict_catboost_latest,
 )
 from stocks_dl.workflows.inference import (
     _prd_train_val_fallback,
@@ -25,9 +34,9 @@ from stocks_dl.workflows.inference import (
 TICKERS = ['SBER', 'GAZP', 'LKOH', 'ROSN', 'T']
 TICKER_OPTIONS = ['Все', *TICKERS]
 TICKERS_KEY = tuple(TICKERS)
+CATBOOST_TICKERS = frozenset({'SBER', 'GAZP'})
 # T — новый тикер Т-Банка; PRD-модель и новости обучались на TCSG
 MODEL_TICKER_BY_DATA_TICKER: dict[str, str] = {'T': 'TCSG'}
-EXPERIMENT_NAME = DEFAULT_EXPERIMENT_NAME
 DB_CACHE_TTL = 3600
 PREDICTION_CACHE_TTL = 3600
 HISTORY_PERIOD_OPTIONS: dict[str, int] = {
@@ -48,19 +57,30 @@ def resolve_model_ticker(data_ticker: str) -> str:
     return MODEL_TICKER_BY_DATA_TICKER.get(data_ticker, data_ticker)
 
 
+def uses_catboost(data_ticker: str) -> bool:
+    return data_ticker in CATBOOST_TICKERS
+
+
 @st.cache_resource
 def init_mlflow() -> bool:
-    configure_mlflow(EXPERIMENT_NAME)
+    configure_mlflow(DEFAULT_EXPERIMENT_NAME)
     return True
 
 
 @st.cache_resource
-def load_best_prd_model_from_mlflow(ticker: str):
-    """Загружает PRD-модель из MLflow (лучший search → PRD run), как в DL_Demonstration."""
+def load_lstm_model_from_mlflow(ticker: str):
     init_mlflow()
-    prd_run_id, prd_summary = find_prd_run(ticker, EXPERIMENT_NAME)
+    prd_run_id, prd_summary = find_prd_run(ticker, LSTM_EXPERIMENT_NAME)
     model, checkpoint = load_prd_model(prd_run_id)
     return model, checkpoint, prd_summary, prd_run_id
+
+
+@st.cache_resource
+def load_catboost_model_from_mlflow(ticker: str):
+    init_mlflow()
+    run_id, summary = find_catboost_run(ticker, CATBOOST_EXPERIMENT_NAME)
+    model = load_catboost_model(run_id)
+    return model, summary, run_id
 
 
 def _dataframe_fingerprint(df: pd.DataFrame) -> str:
@@ -114,8 +134,12 @@ def load_all_ticker_data_cached(tickers: tuple[str, ...]) -> dict[str, tuple[pd.
 
 def predict_latest_price_change(data_ticker: str, features_df: pd.DataFrame) -> float:
     """Прогноз изменения цены (%) на последней доступной точке."""
+    if uses_catboost(data_ticker):
+        model, _, _ = load_catboost_model_from_mlflow(data_ticker)
+        return predict_catboost_latest(model, features_df)
+
     model_ticker = resolve_model_ticker(data_ticker)
-    model, checkpoint, prd_summary, _ = load_best_prd_model_from_mlflow(model_ticker)
+    model, checkpoint, prd_summary, _ = load_lstm_model_from_mlflow(model_ticker)
     seq_len = int(prd_summary['sequence_length'])
     batch_size = int(prd_summary['batch_size'])
 
@@ -184,7 +208,8 @@ def build_ticker_prediction(
 
 
 def _prediction_cache_key(ticker: str, fingerprint: str) -> str:
-    return f'{ticker}:{fingerprint}'
+    model_family = 'catboost' if uses_catboost(ticker) else 'lstm'
+    return f'{model_family}:{ticker}:{fingerprint}'
 
 
 def get_ticker_prediction_cached(

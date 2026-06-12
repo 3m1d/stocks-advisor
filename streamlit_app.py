@@ -61,6 +61,10 @@ def uses_catboost(data_ticker: str) -> bool:
     return data_ticker in CATBOOST_TICKERS
 
 
+def model_name(data_ticker: str) -> str:
+    return 'CatBoost' if uses_catboost(data_ticker) else 'LSTM'
+
+
 @st.cache_resource
 def init_mlflow() -> bool:
     configure_mlflow(DEFAULT_EXPERIMENT_NAME)
@@ -199,6 +203,7 @@ def build_ticker_prediction(
 
     return {
         'ticker': ticker,
+        'model_name': model_name(ticker),
         'current_price': current_price,
         'current_date': current_date,
         'predicted_price': predicted_price,
@@ -342,6 +347,8 @@ def render_ticker_card(
     history_days: int,
 ) -> None:
     st.subheader(ticker)
+    if prediction:
+        st.caption(f'Модель: {prediction.get("model_name", model_name(ticker))}')
 
     if not prediction:
         st.warning('Нет данных')
@@ -379,6 +386,8 @@ def render_ticker_compact(
     history_days: int,
 ) -> None:
     st.markdown(f'**{ticker}**')
+    if prediction:
+        st.caption(f'Модель: {prediction.get("model_name", model_name(ticker))}')
 
     if not prediction:
         st.caption('Нет данных')

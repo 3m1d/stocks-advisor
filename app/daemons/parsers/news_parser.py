@@ -1,9 +1,15 @@
+import asyncio
+import logging
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.processors import NewsParserProcessor
 from app.daemons.base import BaseDaemon
+from app.daemons.cli_utils import add_date_range_args, parse_date, parse_datetime
+from app.daemons.incremental import IncrementalDataKind, resolve_incremental_datetime_range
+
+logger = logging.getLogger(__name__)
 
 
 class NewsParserDaemon(BaseDaemon):
@@ -19,14 +25,15 @@ class NewsParserDaemon(BaseDaemon):
         await processor.parse(self.start_dt, self.end_dt)
 
 
-def _parse_datetime(value: str) -> datetime:
-    """Parse datetime with flexible format."""
-    for fmt in ['%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d']:
-        try:
-            return datetime.strptime(value, fmt)
-        except ValueError:
-            continue
-    raise ValueError(f'Invalid datetime format: {value}')
+async def _resolve_range(args) -> tuple[datetime, datetime] | None:
+    if args.incremental:
+        end_date = parse_date(args.end) if args.end else None
+        return await resolve_incremental_datetime_range(IncrementalDataKind.NEWS_ARTICLE, end=end_date)
+
+    if not args.start or not args.end:
+        raise SystemExit('--start and --end are required unless --incremental is set')
+
+    return parse_datetime(args.start), parse_datetime(args.end)
 
 
 def main():
@@ -34,16 +41,17 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description='Parse news data')
-    parser.add_argument('--start', type=str, required=True, help='Start datetime (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)')
-    parser.add_argument('--end', type=str, required=True, help='End datetime (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)')
-
+    add_date_range_args(parser)
     args = parser.parse_args()
 
-    start_dt = _parse_datetime(args.start)
-    end_dt = _parse_datetime(args.end)
+    date_range = asyncio.run(_resolve_range(args))
+    if date_range is None:
+        logger.info('News parser: nothing to do')
+        return
 
-    daemon = NewsParserDaemon(start_dt, end_dt)
-    daemon.run()
+    start_dt, end_dt = date_range
+    logger.info('News parser range: %s -> %s', start_dt, end_dt)
+    NewsParserDaemon(start_dt, end_dt).run()
 
 
 if __name__ == '__main__':

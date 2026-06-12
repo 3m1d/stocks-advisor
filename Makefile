@@ -86,7 +86,7 @@ streamlit-run:
 # Docker
 ###############
 
-.PHONY: docker-up docker-down docker-restart docker-up-prod docker-down-prod docker-logs-prod docker-clean-volumes
+.PHONY: docker-up docker-down docker-restart docker-up-prod docker-down-prod docker-logs-prod docker-build-prod docker-build-streamlit-prod docker-build-cron-prod docker-clean-volumes
 
 COMPOSE_PROD = docker compose -f docker-compose-production.yml --env-file production.env
 
@@ -104,13 +104,25 @@ docker-restart: docker-down docker-up
 # Запуск с production конфигом
 docker-up-prod:
 	mkdir -p data/minio_data_production
-	$(COMPOSE_PROD) up -d --build
+	$(COMPOSE_PROD) up -d
 
 docker-down-prod:
 	$(COMPOSE_PROD) down
 
 docker-logs-prod:
-	$(COMPOSE_PROD) logs -f minio mlflow-service
+	$(COMPOSE_PROD) logs -f minio mlflow-service streamlit cron
+
+# Собрать Streamlit + cron (общий base-слой собирается один раз)
+docker-build-prod:
+	$(COMPOSE_PROD) build streamlit cron
+
+# Собрать только Streamlit-образ production
+docker-build-streamlit-prod:
+	$(COMPOSE_PROD) build streamlit
+
+# Собрать только Cron-образ production
+docker-build-cron-prod:
+	$(COMPOSE_PROD) build cron
 
 # Остановить docker контейнеры и удалить volumes, указанные в docker-compose.yml.
 # Полезно, если нужно очистить тестовые данные в БД.
@@ -121,7 +133,10 @@ docker-clean-volumes:
 # Utils
 ###############
 
-.PHONY: hash-password generate-jwt-certs parse-data-from-moex-prod parse-data-from-moex parse-news-prod parse-news process-news-prod process-news
+.PHONY: hash-password generate-jwt-certs \
+	parse-data-from-moex-prod parse-data-from-moex parse-data-from-moex-prod-cron \
+	parse-news-prod parse-news parse-news-prod-cron \
+	process-news-prod process-news process-news-prod-cron
 
 # Получить хэш пароля (алгоритм argon2)
 hash-password:
@@ -191,6 +206,20 @@ process-news-prod:
 	[ "$(gpu)" = "1" ] && args="$$args --gpu"; \
 	$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python3 -m app.daemons.analyzers.news_processor $$args
 
+# Incremental cron targets: from the day after the latest stored record through today.
+parse-data-from-moex-prod-cron:
+	$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python3 -m app.daemons.parsers.asset_parser --incremental
+
+parse-news-prod-cron:
+	$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python3 -m app.daemons.parsers.news_parser --incremental
+
+# Usage: make process-news-prod-cron [source=kommersant] [gpu=1]
+process-news-prod-cron:
+	@args="--incremental"; \
+	[ -n "$(source)" ] && args="$$args --source $(source)"; \
+	[ "$(gpu)" = "1" ] && args="$$args --gpu"; \
+	$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python3 -m app.daemons.analyzers.news_processor $$args
+
 # Обработка новостей в локальной БД (по умолчанию — последние 60 дней до сегодня)
 # Usage: make process-news [source=kommersant] [start=YYYY-MM-DD] [end=YYYY-MM-DD] [gpu=1]
 process-news:
@@ -211,6 +240,7 @@ process-news:
 .PHONY: mlflow-smoke-test mlflow-smoke-test-prod \
 	dl-experiments-search dl-experiments-search-prod \
 	dl-experiments-prd dl-experiments-prd-prod \
+	dl-experiments-retrain dl-experiments-retrain-prod \
 	dl-experiments-analysis dl-experiments-analysis-prod \
 	dl-demonstration dl-demonstration-prod
 
@@ -238,6 +268,9 @@ dl-experiments-search:
 dl-experiments-prd:
 	$(DL_EXPERIMENTS) mode=prd $(DL_TICKER_ARG)
 
+dl-experiments-retrain:
+	$(DL_EXPERIMENTS) mode=retrain $(DL_TICKER_ARG)
+
 dl-experiments-analysis:
 	$(DL_EXPERIMENTS) mode=analysis $(DL_TICKER_ARG)
 
@@ -250,6 +283,9 @@ dl-experiments-search-prod:
 
 dl-experiments-prd-prod:
 	$(DL_EXPERIMENTS_PROD) mode=prd $(DL_TICKER_ARG)
+
+dl-experiments-retrain-prod:
+	$(DL_EXPERIMENTS_PROD) mode=retrain $(DL_TICKER_ARG)
 
 dl-experiments-analysis-prod:
 	$(DL_EXPERIMENTS_PROD) mode=analysis $(DL_TICKER_ARG)

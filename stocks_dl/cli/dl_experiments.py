@@ -1,4 +1,4 @@
-"""CLI for DL experiments: search, PRD retrain, error analysis (multi-ticker via Hydra)."""
+"""CLI for DL experiments: search, PRD retrain, scheduled retrain, error analysis."""
 
 from __future__ import annotations
 
@@ -153,7 +153,15 @@ def main(cfg: DictConfig) -> None:
             _run_analysis(cfg, ticker, features_by_ticker[ticker], enrichments_df)
         return
 
-    raise ValueError(f'Unknown mode: {mode}. Use search, prd, or analysis.')
+    if mode == 'retrain':
+        run_search = bool(cfg.get('retrain', {}).get('run_search', False))
+        for ticker in tickers:
+            if run_search:
+                _run_search(cfg, ticker, features_by_ticker[ticker])
+            _run_prd(cfg, ticker, features_by_ticker[ticker])
+        return
+
+    raise ValueError(f'Unknown mode: {mode}. Use search, prd, analysis, or retrain.')
 
 
 if __name__ == '__main__':

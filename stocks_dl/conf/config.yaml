@@ -12,7 +12,7 @@ hydra:
     dir: outputs/dl/multirun/${now:%Y-%m-%d_%H-%M-%S}
 
 # Default runtime. Can be overridden via CLI
-mode: search  # search | prd | analysis
+mode: search  # search | prd | analysis | retrain
 
 # One ticker:  ticker=GAZP
 # Many:        tickers=[SBER,GAZP]
@@ -43,6 +43,10 @@ training:
   show_plots: false
   verbose: false
   suppress_mlflow_urls: true
+
+# Scheduled retrain (mode=retrain): PRD on fresh data; optional hyperparameter search first.
+retrain:
+  run_search: false
 
 # --- Generated artifacts (not under stocks_dl package code) ---
 paths:

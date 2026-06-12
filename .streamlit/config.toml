@@ -1,6 +1,10 @@
 [server]
+headless = true
+address = "0.0.0.0"
+port = 8501
 # polling вместо inotify/watchdog — иначе на большом репозитории упираемся
 # в fs.inotify.max_user_watches (OSError: [Errno 28] inotify watch limit reached).
+# In Docker/production STREAMLIT_SERVER_FILE_WATCHER_TYPE=none overrides this.
 fileWatcherType = "poll"
 
 folderWatchBlacklist = [

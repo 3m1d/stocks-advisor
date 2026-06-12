@@ -1,6 +1,10 @@
 # Cron service
 
-Периодически запускает парсинг и анализ данных по cron расписанию.
+Периодически запускает парсинг и анализ данных, а также переобучение LSTM по cron расписанию.
+
+## Расписание
+
+Расписание задаётся в `docker/cron/crontab`.
 
 ## Запуск
 
@@ -30,16 +34,19 @@ docker compose -f docker-compose-production.yml --env-file production.env logs -
 docker exec stocks-advisor-cron tail -f /var/log/cron/asset_parser.log
 docker exec stocks-advisor-cron tail -f /var/log/cron/news_parser.log
 docker exec stocks-advisor-cron tail -f /var/log/cron/news_processor.log
+docker exec stocks-advisor-cron tail -f /var/log/cron/lstm_retrain.log
 ```
 
 ## Запуск крона вручную
 
 ```bash
 docker exec stocks-advisor-cron /app/docker/cron/run-job.sh app.daemons.parsers.asset_parser --incremental
+docker exec stocks-advisor-cron /app/docker/cron/run-lstm-retrain.sh
 ```
 
 ## Конфиги
 
 - Переменные окружения: `.env` (монтируется read-only в `/app/.env` и через `env_file`)
 - Конфиг приложения: `APP_CONFIG=config.toml`
-- Требует доступа к PostgreSQL (`DATABASE__HOST`) и внешним MOEX/news API
+- Требует доступа к PostgreSQL (`DATABASE__HOST`), MLflow/MinIO и внешним MOEX/news API
+- Переобучение LSTM: `retrain.run_search=false` (только PRD); для grid search передайте `retrain.run_search=true` в `run-lstm-retrain.sh`

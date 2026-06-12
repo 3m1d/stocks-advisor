@@ -127,9 +127,17 @@ services:
       - .env
     environment:
       APP_CONFIG: config.toml
+      MLFLOW__TRACKING_URI: http://mlflow-service:5000
+      MLFLOW__S3_ENDPOINT_URL: http://minio:9000
+      MLFLOW__AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      MLFLOW__AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      MLFLOW__AWS_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
     volumes:
       - ./.env:/app/.env:ro
       - cron_logs:/var/log/cron
+    depends_on:
+      mlflow-service:
+        condition: service_healthy
 
 volumes:
   minio_data:

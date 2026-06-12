@@ -9,3 +9,5 @@ TZ=Europe/Moscow
 30 6 * * * root /app/docker/cron/run-job.sh app.daemons.parsers.news_parser --incremental >> /var/log/cron/news_parser.log 2>&1
 # Обработка новостей: ежедневно в 07:00
 0 7 * * * root /app/docker/cron/run-job.sh app.daemons.analyzers.news_processor --incremental >> /var/log/cron/news_processor.log 2>&1
+# LSTM retrain: воскресенье 08:00
+0 8 * * 0 root /app/docker/cron/run-lstm-retrain.sh >> /var/log/cron/lstm_retrain.log 2>&1

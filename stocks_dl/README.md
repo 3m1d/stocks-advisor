@@ -52,6 +52,16 @@ make dl-experiments-prd
 # На продакшне: make dl-experiments-prd-prod
 ```
 
+### Плановое переобучение
+
+Переобучение на свежих данных; по умолчанию без grid search (`retrain.run_search=false`):
+
+```bash
+make dl-experiments-retrain
+# На продакшне: make dl-experiments-retrain-prod
+# С перебором гиперпараметров: make dl-experiments-retrain-prod retrain.run_search=true
+```
+
 ### Анализ ошибок модели
 
 ```bash
@@ -94,6 +104,7 @@ uv run python -m stocks_dl.cli.dl_experiments \
 - `mode` - режим работы:
   - `search` - перебор гиперпараметров
   - `prd` - обучение модели по лучшим гиперпараметрам
+  - `retrain` - плановое переобучение (`retrain.run_search=true` добавляет search перед prd)
   - `analysis` - анализ ошибок модели
 - `experiment` - название эксперимента в MLFlow
 - `ticker` - тикер. `all` - все тикеры, `[SBER,GAZP]` - определенные тикеры

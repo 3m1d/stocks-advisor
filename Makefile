@@ -236,6 +236,7 @@ process-news:
 .PHONY: mlflow-smoke-test mlflow-smoke-test-prod \
 	dl-experiments-search dl-experiments-search-prod \
 	dl-experiments-prd dl-experiments-prd-prod \
+	dl-experiments-retrain dl-experiments-retrain-prod \
 	dl-experiments-analysis dl-experiments-analysis-prod \
 	dl-demonstration dl-demonstration-prod
 
@@ -263,6 +264,9 @@ dl-experiments-search:
 dl-experiments-prd:
 	$(DL_EXPERIMENTS) mode=prd $(DL_TICKER_ARG)
 
+dl-experiments-retrain:
+	$(DL_EXPERIMENTS) mode=retrain $(DL_TICKER_ARG)
+
 dl-experiments-analysis:
 	$(DL_EXPERIMENTS) mode=analysis $(DL_TICKER_ARG)
 
@@ -275,6 +279,9 @@ dl-experiments-search-prod:
 
 dl-experiments-prd-prod:
 	$(DL_EXPERIMENTS_PROD) mode=prd $(DL_TICKER_ARG)
+
+dl-experiments-retrain-prod:
+	$(DL_EXPERIMENTS_PROD) mode=retrain $(DL_TICKER_ARG)
 
 dl-experiments-analysis-prod:
 	$(DL_EXPERIMENTS_PROD) mode=analysis $(DL_TICKER_ARG)

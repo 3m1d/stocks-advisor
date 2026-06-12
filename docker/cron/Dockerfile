@@ -25,7 +25,7 @@ RUN mkdir -p app/certs \
     && openssl rsa -in app/certs/jwt-private.pem -outform PEM -pubout -out app/certs/jwt-public.pem
 
 RUN mkdir -p /var/log/cron \
-    && chmod +x docker/cron/run-job.sh docker/cron/entrypoint.sh \
+    && chmod +x docker/cron/run-job.sh docker/cron/run-lstm-retrain.sh docker/cron/entrypoint.sh \
     && cp docker/cron/crontab /etc/cron.d/stocks-advisor \
     && chmod 0644 /etc/cron.d/stocks-advisor
 

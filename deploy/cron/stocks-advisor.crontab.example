@@ -9,6 +9,7 @@
 #
 # Host crontab is NOT required. The entries below are kept for reference only.
 
-# 0 6 * * *  MOEX candles      -> asset_parser --incremental
-# 30 6 * * * news parsing      -> news_parser --incremental
-# 0 7 * * *  news enrichment   -> news_processor --incremental
+# 0 6 * * *    MOEX candles       -> asset_parser --incremental
+# 30 6 * * *   news parsing       -> news_parser --incremental
+# 0 7 * * *    news enrichment    -> news_processor --incremental
+# 0 8 * * 0    LSTM retrain       -> run-lstm-retrain.sh (LKOH, ROSN, TCSG PRD)

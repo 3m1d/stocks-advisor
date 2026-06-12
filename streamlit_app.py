@@ -8,11 +8,35 @@ from sqlalchemy.pool import NullPool
 from app.config.settings import get_settings
 from app.core.database.repositories.asset_candle import AssetCandleRepository
 from app.core.processors.feature_generator import FeatureGenerator
-from app.core.processors.model_predictor import ModelPredictor
+from app.mlflow import configure_mlflow
+from stocks_dl.constants import DEFAULT_EXPERIMENT_NAME
+from stocks_dl.data.pipeline import load_features_bundle
+from stocks_dl.workflows.inference import (
+    _prd_train_val_fallback,
+    find_prd_run,
+    load_prd_model,
+    predict_from_dataframes,
+)
 
 TICKERS = ['SBER', 'GAZP', 'LKOH', 'ROSN']
+EXPERIMENT_NAME = DEFAULT_EXPERIMENT_NAME
 
 settings = get_settings()
+
+
+@st.cache_resource
+def init_mlflow() -> bool:
+    configure_mlflow(EXPERIMENT_NAME)
+    return True
+
+
+@st.cache_resource
+def load_best_prd_model_from_mlflow(ticker: str):
+    """Загружает PRD-модель из MLflow (лучший search → PRD run), как в DL_Demonstration."""
+    init_mlflow()
+    prd_run_id, prd_summary = find_prd_run(ticker, EXPERIMENT_NAME)
+    model, checkpoint = load_prd_model(prd_run_id)
+    return model, checkpoint, prd_summary, prd_run_id
 
 
 @st.cache_resource
@@ -37,6 +61,32 @@ def get_session_maker():
     )
 
 
+def predict_latest_price_change(ticker: str, features_df: pd.DataFrame) -> float:
+    """Прогноз изменения цены (%) на последней доступной точке."""
+    model, checkpoint, prd_summary, _ = load_best_prd_model_from_mlflow(ticker)
+    seq_len = int(prd_summary['sequence_length'])
+    batch_size = int(prd_summary['batch_size'])
+
+    inference_df = features_df.sort_values('begin').tail(max(seq_len, 32)).copy()
+    train_df, val_df = _prd_train_val_fallback(
+        features_df,
+        checkpoint,
+        test_size=0.2,
+        val_size=0.2,
+        final_val_size=0.15,
+    )
+    predictions_df, _ = predict_from_dataframes(
+        model,
+        inference_df,
+        seq_len,
+        batch_size,
+        checkpoint=checkpoint,
+        train_df=train_df,
+        val_df=val_df,
+    )
+    return float(predictions_df.iloc[-1]['predict'])
+
+
 async def get_ticker_prediction(ticker: str) -> dict | None:
     """Получает прогноз для тикера"""
     session_maker = get_session_maker()
@@ -45,35 +95,23 @@ async def get_ticker_prediction(ticker: str) -> dict | None:
         try:
             repo = AssetCandleRepository(session)
 
-            # Fetch enough data for feature generation (need ~1000 hourly points for 200 2h-intervals after aggregation)
             raw_df = await repo.get_dataframe(ticker, 1000)
-
             if raw_df.empty:
                 return None
 
-            # Generate features
+            features_df, _ = await load_features_bundle(ticker)
+            if features_df.empty:
+                return None
+
+            predicted_price_change = predict_latest_price_change(ticker, features_df)
+
             feature_gen = FeatureGenerator()
             processed_df = feature_gen.process(df=raw_df, include_original=True)
-
             if processed_df.empty:
                 return None
 
-            # Make predictions on last row only
-            last_row_df = processed_df.iloc[[-1]]
-            model_predictor = ModelPredictor(ticker, 'app/core/processors/models')
-            predictions = model_predictor.predict(last_row_df)
-
-            if not predictions:
-                return None
-
-            prediction = predictions[0]  # Get first (and only) prediction
-
-            # Get close price
             current_price = processed_df.iloc[-1]['close']
             current_date = processed_df.iloc[-1]['begin']
-
-            # Calculate predicted price
-            predicted_price_change = prediction['value']
             predicted_price = current_price * (1 + predicted_price_change / 100)
             future_date = pd.to_datetime(current_date) + pd.Timedelta(days=7)
 

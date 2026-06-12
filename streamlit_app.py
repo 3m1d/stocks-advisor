@@ -384,7 +384,12 @@ def main():
     st.title('Прогнозирование стоимости акций')
     st.markdown('### Прогноз на неделю')
 
-    selected_ticker = st.sidebar.selectbox('Тикер', TICKER_OPTIONS, index=0)
+    selected_ticker = st.sidebar.pills(
+        'Тикер',
+        TICKER_OPTIONS,
+        default='Все',
+        selection_mode='single',
+    ) or 'Все'
     selected_period = st.sidebar.selectbox(
         'Период графика',
         list(HISTORY_PERIOD_OPTIONS.keys()),

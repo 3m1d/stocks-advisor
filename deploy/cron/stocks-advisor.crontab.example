@@ -1,0 +1,14 @@
+# Production cron jobs run inside the `cron` Docker service.
+#
+# Start the stack (includes cron):
+#   make docker-up-prod
+#
+# Schedule: docker/cron/crontab  (default timezone: Europe/Moscow)
+# Logs:
+#   docker compose -f docker-compose-production.yml --env-file production.env logs -f cron
+#
+# Host crontab is NOT required. The entries below are kept for reference only.
+
+# 0 6 * * *  MOEX candles      -> asset_parser --incremental
+# 30 6 * * * news parsing      -> news_parser --incremental
+# 0 7 * * *  news enrichment   -> news_processor --incremental

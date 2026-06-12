@@ -1,8 +1,8 @@
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import date, datetime
 
 import pandas as pd
-from sqlalchemy import cast, desc, func, select
+from sqlalchemy import Date, cast, desc, func, select
 from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -190,6 +190,24 @@ class NewsArticleRepository:
 
         async with self.session.begin():
             return await self.session.scalar(q) or 0
+
+    async def get_latest_published_date(self, source: NewsSource | None = None) -> date | None:
+        q = select(func.max(cast(NewsArticle.published_at, Date)))
+        if source is not None:
+            q = q.where(NewsArticle.source == source)
+        async with self.session.begin():
+            return await self.session.scalar(q)
+
+    async def get_latest_enriched_published_date(self, source: NewsSource | None = None) -> date | None:
+        q = (
+            select(func.max(cast(NewsArticle.published_at, Date)))
+            .select_from(NewsArticleEnrichment)
+            .join(NewsArticle, NewsArticle.id == NewsArticleEnrichment.news_article_id)
+        )
+        if source is not None:
+            q = q.where(NewsArticle.source == source)
+        async with self.session.begin():
+            return await self.session.scalar(q)
 
     async def get_all_as_dataframe(
         self,

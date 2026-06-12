@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 import pandas as pd
-from sqlalchemy import select, desc
+from sqlalchemy import Date, cast, desc, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -45,6 +45,12 @@ class AssetCandleRepository:
         async with self.session.begin():
             result = await self.session.execute(stmt, payload)
             return len(result.all())
+
+    async def get_latest_begin_date(self) -> date | None:
+        query = select(func.max(cast(AssetCandle.begin, Date)))
+        async with self.session.begin():
+            latest = await self.session.scalar(query)
+        return latest
 
     async def get_dataframe(
         self,

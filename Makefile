@@ -125,7 +125,10 @@ docker-clean-volumes:
 # Utils
 ###############
 
-.PHONY: hash-password generate-jwt-certs parse-data-from-moex-prod parse-data-from-moex parse-news-prod parse-news process-news-prod process-news
+.PHONY: hash-password generate-jwt-certs \
+	parse-data-from-moex-prod parse-data-from-moex parse-data-from-moex-prod-cron \
+	parse-news-prod parse-news parse-news-prod-cron \
+	process-news-prod process-news process-news-prod-cron
 
 # Получить хэш пароля (алгоритм argon2)
 hash-password:
@@ -191,6 +194,20 @@ process-news-prod:
 	[ -z "$$end_dt" ] && end_dt=$$now; \
 	[ -z "$$start_dt" ] && start_dt=$$(date -d "$$end_dt - 60 day" +%Y-%m-%d); \
 	args="--start $$start_dt --end $$end_dt"; \
+	[ -n "$(source)" ] && args="$$args --source $(source)"; \
+	[ "$(gpu)" = "1" ] && args="$$args --gpu"; \
+	$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python3 -m app.daemons.analyzers.news_processor $$args
+
+# Incremental cron targets: from the day after the latest stored record through today.
+parse-data-from-moex-prod-cron:
+	$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python3 -m app.daemons.parsers.asset_parser --incremental
+
+parse-news-prod-cron:
+	$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python3 -m app.daemons.parsers.news_parser --incremental
+
+# Usage: make process-news-prod-cron [source=kommersant] [gpu=1]
+process-news-prod-cron:
+	@args="--incremental"; \
 	[ -n "$(source)" ] && args="$$args --source $(source)"; \
 	[ "$(gpu)" = "1" ] && args="$$args --gpu"; \
 	$(RUN_WITH_ENV) APP_CONFIG=config.toml uv run python3 -m app.daemons.analyzers.news_processor $$args

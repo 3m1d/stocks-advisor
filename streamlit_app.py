@@ -432,8 +432,9 @@ def main():
         layout='wide',
         initial_sidebar_state='expanded',
     )
-    st.title('Прогнозирование стоимости акций')
-    st.markdown('### Прогноз на неделю')
+
+    st.sidebar.title('Прогнозирование стоимости акций')
+    st.sidebar.markdown('### Прогноз на неделю')
 
     selected_ticker = st.sidebar.pills(
         'Тикер',

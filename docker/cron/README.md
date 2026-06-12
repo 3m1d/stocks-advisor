@@ -14,10 +14,11 @@
 make docker-up-prod
 ```
 
-Собрать только cron-образ:
+Сборка образа:
 
 ```bash
-make docker-build-cron-prod
+make docker-build-prod          # streamlit + cron
+make docker-build-cron-prod     # только cron
 ```
 
 ## Логи

@@ -86,7 +86,7 @@ streamlit-run:
 # Docker
 ###############
 
-.PHONY: docker-up docker-down docker-restart docker-up-prod docker-down-prod docker-logs-prod docker-build-streamlit-prod docker-build-cron-prod docker-clean-volumes
+.PHONY: docker-up docker-down docker-restart docker-up-prod docker-down-prod docker-logs-prod docker-build-prod docker-build-streamlit-prod docker-build-cron-prod docker-clean-volumes
 
 COMPOSE_PROD = docker compose -f docker-compose-production.yml --env-file production.env
 
@@ -111,6 +111,10 @@ docker-down-prod:
 
 docker-logs-prod:
 	$(COMPOSE_PROD) logs -f minio mlflow-service streamlit cron
+
+# Собрать Streamlit + cron (общий base-слой собирается один раз)
+docker-build-prod:
+	$(COMPOSE_PROD) build streamlit cron
 
 # Собрать только Streamlit-образ production
 docker-build-streamlit-prod:

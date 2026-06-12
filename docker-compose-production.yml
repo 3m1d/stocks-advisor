@@ -85,7 +85,8 @@ services:
   streamlit:
     build:
       context: .
-      dockerfile: docker/streamlit/Dockerfile
+      dockerfile: docker/app/Dockerfile
+      target: streamlit
     image: stocks-advisor-streamlit:3.12
     container_name: stocks-advisor-streamlit
     restart: unless-stopped
@@ -119,7 +120,8 @@ services:
   cron:
     build:
       context: .
-      dockerfile: docker/cron/Dockerfile
+      dockerfile: docker/app/Dockerfile
+      target: cron
     image: stocks-advisor-cron:3.12
     container_name: stocks-advisor-cron
     restart: unless-stopped

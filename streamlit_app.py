@@ -243,13 +243,12 @@ def render_price_chart(prediction: dict, history: pd.DataFrame) -> None:
         )
     )
     fig.update_layout(
+        template='streamlit',
         height=320,
         margin={'l': 8, 'r': 8, 't': 32, 'b': 8},
         legend={'orientation': 'h', 'yanchor': 'bottom', 'y': 1.02, 'xanchor': 'right', 'x': 1},
-        xaxis={'title': None, 'showgrid': True, 'gridcolor': '#eef2f7'},
-        yaxis={'title': 'Цена, ₽', 'showgrid': True, 'gridcolor': '#eef2f7', 'tickformat': '.2f'},
-        plot_bgcolor='white',
-        paper_bgcolor='white',
+        xaxis={'title': None, 'showgrid': True},
+        yaxis={'title': 'Цена, ₽', 'showgrid': True, 'tickformat': '.2f'},
         hovermode='x unified',
     )
     st.plotly_chart(fig, use_container_width=True)

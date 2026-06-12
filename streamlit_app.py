@@ -261,9 +261,20 @@ def render_price_chart(
     fig.update_layout(
         template='streamlit',
         height=height,
-        margin={'l': 4, 'r': 4, 't': 8 if compact else 32, 'b': 4},
+        margin={
+            'l': 4,
+            'r': 4,
+            't': 8 if compact else 16,
+            'b': 4 if compact else 48,
+        },
         showlegend=not compact,
-        legend={'orientation': 'h', 'yanchor': 'bottom', 'y': 1.02, 'xanchor': 'right', 'x': 1},
+        legend={
+            'orientation': 'h',
+            'yanchor': 'top',
+            'y': -0.25,
+            'xanchor': 'center',
+            'x': 0.5,
+        },
         xaxis={'title': None, 'showgrid': True, 'showticklabels': not compact},
         yaxis={
             'title': None if compact else 'Цена, ₽',

@@ -279,17 +279,13 @@ def main():
     st.title('Прогнозирование стоимости акций')
     st.markdown('### Прогноз на неделю')
 
+    selected_ticker = st.sidebar.selectbox('Тикер', TICKERS, index=0)
+
     all_predictions, loaded_by_ticker = fetch_all_predictions()
 
-    cols_per_row = 3
-    for row_start in range(0, len(TICKERS), cols_per_row):
-        row_tickers = TICKERS[row_start : row_start + cols_per_row]
-        columns = st.columns(len(row_tickers))
-        for column, ticker in zip(columns, row_tickers, strict=True):
-            loaded = loaded_by_ticker.get(ticker)
-            raw_df = loaded[0] if loaded else None
-            with column:
-                render_ticker_card(ticker, all_predictions[ticker], raw_df)
+    loaded = loaded_by_ticker.get(selected_ticker)
+    raw_df = loaded[0] if loaded else None
+    render_ticker_card(selected_ticker, all_predictions[selected_ticker], raw_df)
 
 
 if __name__ == '__main__':

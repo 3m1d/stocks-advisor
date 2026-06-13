@@ -3,12 +3,8 @@ set -euo pipefail
 
 cd /app
 
-if [ -f /app/.env ]; then
-  set -a
-  # shellcheck disable=SC1091
-  source /app/.env
-  set +a
-fi
+# Env comes from docker compose: env_file (.env) + environment overrides.
+# Do not source .env here — it would overwrite compose values (e.g. MLFLOW URLs).
 
 export APP_CONFIG="${APP_CONFIG:-config.toml}"
 

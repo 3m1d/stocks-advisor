@@ -47,6 +47,6 @@ docker exec stocks-advisor-cron /app/docker/cron/run-job.sh app.daemons.analyzer
 
 ## Конфиги
 
-- Переменные окружения: `.env` (монтируется read-only в `/app/.env` и через `env_file`)
-- Конфиг приложения: `APP_CONFIG=config.toml`
-- Требует доступа к PostgreSQL (`DATABASE__HOST`) и внешним MOEX/news API
+- Секреты и host-дефолты: `.env` → `env_file` в compose
+- In-cluster URL (MLflow, MinIO): переопределяются в `environment:` compose (приоритет выше `env_file`)
+- `run-job.sh` не читает `.env` — переменные уже в окружении контейнера

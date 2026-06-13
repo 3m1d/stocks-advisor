@@ -21,6 +21,10 @@ class NewsParserDaemon(BaseDaemon):
         self.end_dt = end_dt
 
     async def execute(self, session: AsyncSession) -> None:
+        await self.run_async()
+
+    async def run_async(self) -> None:
+        # Each news source runs in a spawned subprocess with its own DB engine/session.
         processor = NewsParserProcessor()
         await processor.parse(self.start_dt, self.end_dt)
 

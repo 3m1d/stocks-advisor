@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-# Shared base for Streamlit and cron. Build targets: streamlit | cron
-# docker compose build streamlit cron  — base stage is built once and reused.
+# Shared base for Streamlit and cron services. Build targets: streamlit | cron | cron-train
+# docker compose build streamlit cron cron-train  — base stage is built once and reused.
 
 FROM python:3.12-slim-bookworm AS base
 
@@ -41,8 +41,19 @@ FROM base AS cron
 ENV TZ=Europe/Moscow
 
 RUN mkdir -p /var/log/cron \
-    && chmod +x docker/cron/run-job.sh docker/cron/run-lstm-retrain.sh docker/cron/entrypoint.sh \
+    && chmod +x docker/cron/run-job.sh docker/cron/entrypoint.sh \
     && cp docker/cron/crontab /etc/cron.d/stocks-advisor \
     && chmod 0644 /etc/cron.d/stocks-advisor
+
+ENTRYPOINT ["/app/docker/cron/entrypoint.sh"]
+
+FROM base AS cron-train
+
+ENV TZ=Europe/Moscow
+
+RUN mkdir -p /var/log/cron \
+    && chmod +x docker/cron/run-job.sh docker/cron/entrypoint.sh docker/cron-train/run-lstm-retrain.sh \
+    && cp docker/cron-train/crontab /etc/cron.d/stocks-advisor-train \
+    && chmod 0644 /etc/cron.d/stocks-advisor-train
 
 ENTRYPOINT ["/app/docker/cron/entrypoint.sh"]

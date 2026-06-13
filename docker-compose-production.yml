@@ -131,14 +131,32 @@ services:
       - .env
     environment:
       APP_CONFIG: config.toml
+    volumes:
+      - ./.env:/app/.env:ro
+      - cron_logs:/var/log/cron
+
+  cron-train:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+      target: cron-train
+    image: stocks-advisor-cron-train:3.12
+    container_name: stocks-advisor-cron-train
+    restart: unless-stopped
+    gpus: all
+    env_file:
+      - .env
+    environment:
+      APP_CONFIG: config.toml
       MLFLOW__TRACKING_URI: http://mlflow-service:5000
       MLFLOW__S3_ENDPOINT_URL: http://minio:9000
       MLFLOW__AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
       MLFLOW__AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
       MLFLOW__AWS_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
+      NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-all}
     volumes:
       - ./.env:/app/.env:ro
-      - cron_logs:/var/log/cron
+      - cron_train_logs:/var/log/cron
     depends_on:
       mlflow-service:
         condition: service_healthy
@@ -153,4 +171,6 @@ volumes:
   streamlit_cache:
     driver: local
   cron_logs:
+    driver: local
+  cron_train_logs:
     driver: local

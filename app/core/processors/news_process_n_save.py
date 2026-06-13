@@ -74,13 +74,34 @@ class NewsProcessAndSaveProcessor:
 
         self.chunk_size = chunk_size
         self.db_batch_size = db_batch_size
-        self.processor = processor or NewsProcessor(use_gpu=use_gpu)
+        self._processor = processor
+        self._use_gpu = use_gpu
+
+    def _get_processor(self) -> NewsProcessor:
+        if self._processor is None:
+            self._processor = NewsProcessor(use_gpu=self._use_gpu)
+        return self._processor
 
     async def process(
         self,
         published_from: datetime | date | None = None,
         published_to: datetime | date | None = None,
         source: NewsSource | None = None,
+        *,
+        session: AsyncSession | None = None,
+    ) -> tuple[int, int]:
+        if session is not None:
+            return await self._process(session, published_from, published_to, source)
+
+        async with get_db_session() as owned_session:
+            return await self._process(owned_session, published_from, published_to, source)
+
+    async def _process(
+        self,
+        session: AsyncSession,
+        published_from: datetime | date | None,
+        published_to: datetime | date | None,
+        source: NewsSource | None,
     ) -> tuple[int, int]:
         published_from_dt = _to_datetime(published_from)
         published_to_dt = _to_datetime(published_to, end_of_day=True)
@@ -89,94 +110,94 @@ class NewsProcessAndSaveProcessor:
         saved_count = 0
         offset = 0
 
-        async with get_db_session() as session:
-            repo = NewsArticleRepository(session)
+        repo = NewsArticleRepository(session)
 
-            total_count = await repo.count(
+        total_count = await repo.count(
+            published_from=published_from_dt,
+            published_to=published_to_dt,
+            source=source,
+        )
+        if total_count == 0:
+            logger.info(
+                'No articles to process (source=%s, from=%s, to=%s)',
+                source,
+                published_from_dt,
+                published_to_dt,
+            )
+            return 0, 0
+
+        processor = self._get_processor()
+        total_chunks = (total_count + self.chunk_size - 1) // self.chunk_size
+        logger.info(
+            'Found %s articles to process in %s chunks (source=%s, from=%s, to=%s, chunk_size=%s)',
+            total_count,
+            total_chunks,
+            source,
+            published_from_dt,
+            published_to_dt,
+            self.chunk_size,
+        )
+
+        chunk_number = 0
+        while True:
+            articles = await repo.get_all(
+                limit=self.chunk_size,
+                offset=offset,
                 published_from=published_from_dt,
                 published_to=published_to_dt,
                 source=source,
             )
-            if total_count == 0:
-                logger.info(
-                    'No articles to process (source=%s, from=%s, to=%s)',
-                    source,
-                    published_from_dt,
-                    published_to_dt,
-                )
-                return 0, 0
+            if not articles:
+                break
 
-            total_chunks = (total_count + self.chunk_size - 1) // self.chunk_size
+            chunk_number += 1
+            processed_so_far = offset + len(articles)
             logger.info(
-                'Found %s articles to process in %s chunks (source=%s, from=%s, to=%s, chunk_size=%s)',
-                total_count,
+                'Processing chunk %s/%s: %s articles (%s/%s total, source=%s, from=%s, to=%s)',
+                chunk_number,
                 total_chunks,
+                len(articles),
+                processed_so_far,
+                total_count,
                 source,
                 published_from_dt,
                 published_to_dt,
-                self.chunk_size,
             )
 
-            chunk_number = 0
-            while True:
-                articles = await repo.get_all(
-                    limit=self.chunk_size,
-                    offset=offset,
-                    published_from=published_from_dt,
-                    published_to=published_to_dt,
-                    source=source,
-                )
-                if not articles:
-                    break
+            df = news_articles_to_dataframe(articles)
+            with timed() as chunk:
+                with log_timed(f'NLP ({len(articles)} articles)', logger=logger, count=len(articles)) as nlp:
+                    enriched_df = await asyncio.to_thread(processor.process_news, df)
 
-                chunk_number += 1
-                processed_so_far = offset + len(articles)
-                logger.info(
-                    'Processing chunk %s/%s: %s articles (%s/%s total, source=%s, from=%s, to=%s)',
-                    chunk_number,
-                    total_chunks,
-                    len(articles),
-                    processed_so_far,
-                    total_count,
-                    source,
-                    published_from_dt,
-                    published_to_dt,
-                )
+                with log_timed(
+                    f'DB save ({len(articles)} articles)', logger=logger, count=len(articles)
+                ) as db_save:
+                    enrichments = _dataframe_to_enrichments(enriched_df)
+                    batch_saved = await _save_enrichments(
+                        session,
+                        enrichments,
+                        db_batch_size=self.db_batch_size,
+                    )
 
-                df = news_articles_to_dataframe(articles)
-                with timed() as chunk:
-                    with log_timed(f'NLP ({len(articles)} articles)', logger=logger, count=len(articles)) as nlp:
-                        enriched_df = await asyncio.to_thread(self.processor.process_news, df)
+            processed_count += len(articles)
+            saved_count += batch_saved
+            offset += len(articles)
 
-                    with log_timed(
-                        f'DB save ({len(articles)} articles)', logger=logger, count=len(articles)
-                    ) as db_save:
-                        enrichments = _dataframe_to_enrichments(enriched_df)
-                        batch_saved = await _save_enrichments(
-                            session,
-                            enrichments,
-                            db_batch_size=self.db_batch_size,
-                        )
+            logger.info(
+                'Chunk %s/%s done: processed %s, saved %s enrichments (%s/%s total) in %s (nlp=%s, db_save=%s)',
+                chunk_number,
+                total_chunks,
+                len(articles),
+                batch_saved,
+                processed_count,
+                total_count,
+                format_duration(chunk.seconds),
+                format_duration(nlp.seconds),
+                format_duration(db_save.seconds),
+            )
 
-                processed_count += len(articles)
-                saved_count += batch_saved
-                offset += len(articles)
-
-                logger.info(
-                    'Chunk %s/%s done: processed %s, saved %s enrichments (%s/%s total) in %s (nlp=%s, db_save=%s)',
-                    chunk_number,
-                    total_chunks,
-                    len(articles),
-                    batch_saved,
-                    processed_count,
-                    total_count,
-                    format_duration(chunk.seconds),
-                    format_duration(nlp.seconds),
-                    format_duration(db_save.seconds),
-                )
-
-                if len(articles) < self.chunk_size:
-                    break
+            if len(articles) < self.chunk_size:
+                break
 
         logger.info('Processing finished: processed %s articles, saved %s enrichments', processed_count, saved_count)
         return processed_count, saved_count

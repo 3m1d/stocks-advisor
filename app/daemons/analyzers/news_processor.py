@@ -32,7 +32,12 @@ class NewsProcessorDaemon(BaseDaemon):
 
     async def execute(self, session: AsyncSession) -> None:
         processor = NewsProcessAndSaveProcessor(use_gpu=self.use_gpu)
-        await processor.process(self.start_dt, self.end_dt, source=self.source)
+        await processor.process(
+            self.start_dt,
+            self.end_dt,
+            source=self.source,
+            session=session,
+        )
 
 
 async def _resolve_range(args, source: NewsSource | None) -> tuple[datetime, datetime] | None:
@@ -48,6 +53,18 @@ async def _resolve_range(args, source: NewsSource | None) -> tuple[datetime, dat
         raise SystemExit('--start and --end are required unless --incremental is set')
 
     return parse_datetime(args.start), parse_datetime(args.end)
+
+
+async def _main(args) -> None:
+    source = NewsSource(args.source) if args.source else None
+    date_range = await _resolve_range(args, source)
+    if date_range is None:
+        logger.info('News processor: nothing to do')
+        return
+
+    start_dt, end_dt = date_range
+    logger.info('News processor range: %s -> %s', start_dt, end_dt)
+    await NewsProcessorDaemon(start_dt, end_dt, source, use_gpu=args.gpu).run_async()
 
 
 def main():
@@ -69,16 +86,7 @@ def main():
     )
 
     args = parser.parse_args()
-    source = NewsSource(args.source) if args.source else None
-
-    date_range = asyncio.run(_resolve_range(args, source))
-    if date_range is None:
-        logger.info('News processor: nothing to do')
-        return
-
-    start_dt, end_dt = date_range
-    logger.info('News processor range: %s -> %s', start_dt, end_dt)
-    NewsProcessorDaemon(start_dt, end_dt, source, use_gpu=args.gpu).run()
+    asyncio.run(_main(args))
 
 
 if __name__ == '__main__':

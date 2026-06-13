@@ -37,9 +37,10 @@ docker exec stocks-advisor-cron tail -f /var/log/cron/news_parser.log
 docker exec stocks-advisor-cron tail -f /var/log/cron/news_processor.log
 ```
 
-## Запуск вручную
+## Ручной запуск
 
 ```bash
+docker exec stocks-advisor-cron /app/docker/cron/run-job.sh app.daemons.parsers.asset_parser --incremental
 docker exec stocks-advisor-cron /app/docker/cron/run-job.sh app.daemons.parsers.news_parser --incremental
 docker exec stocks-advisor-cron /app/docker/cron/run-job.sh app.daemons.analyzers.news_processor --incremental
 ```

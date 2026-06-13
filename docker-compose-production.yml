@@ -143,7 +143,13 @@ services:
     image: stocks-advisor-cron-train:3.12
     container_name: stocks-advisor-cron-train
     restart: unless-stopped
-    gpus: all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     env_file:
       - .env
     environment:

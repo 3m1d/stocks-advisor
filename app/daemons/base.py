@@ -20,8 +20,8 @@ class BaseDaemon(ABC):
         pass
 
     def run(self) -> None:
-        asyncio.run(self._run_with_session())
+        asyncio.run(self.run_async())
 
-    async def _run_with_session(self) -> None:
+    async def run_async(self) -> None:
         async with get_db_session() as session:
             await self.execute(session)

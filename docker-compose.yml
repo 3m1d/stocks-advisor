@@ -77,6 +77,7 @@ services:
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
       AWS_DEFAULT_REGION: us-east-1
+      MLFLOW_SERVER_ALLOWED_HOSTS: localhost:*,127.0.0.1:*
     command:
       - bash
       - -c
@@ -86,7 +87,8 @@ services:
             --backend-store-uri postgresql://stocks_advisor_app_user:stocks_advisor_app_password@postgres:5432/mlflow \
             --default-artifact-root s3://mlflow-bucket/mlflow \
             --artifacts-destination s3://mlflow-bucket/mlflow \
-            --serve-artifacts
+            --serve-artifacts \
+            --allowed-hosts "${MLFLOW_SERVER_ALLOWED_HOSTS}"
     ports:
       - "5000:5000"
     volumes:

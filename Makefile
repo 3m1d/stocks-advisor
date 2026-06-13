@@ -86,7 +86,7 @@ streamlit-run:
 # Docker
 ###############
 
-.PHONY: docker-up docker-down docker-restart docker-up-prod docker-down-prod docker-logs-prod docker-build-prod docker-build-streamlit-prod docker-build-cron-prod docker-clean-volumes
+.PHONY: docker-up docker-down docker-restart docker-up-prod docker-down-prod docker-logs-prod docker-build-prod docker-build-streamlit-prod docker-build-cron-prod docker-build-cron-train-prod docker-clean-volumes
 
 COMPOSE_PROD = docker compose -f docker-compose-production.yml --env-file production.env
 
@@ -110,19 +110,23 @@ docker-down-prod:
 	$(COMPOSE_PROD) down
 
 docker-logs-prod:
-	$(COMPOSE_PROD) logs -f minio mlflow-service streamlit cron
+	$(COMPOSE_PROD) logs -f minio mlflow-service streamlit cron cron-train
 
-# Собрать Streamlit + cron (общий base-слой собирается один раз)
+# Собрать Streamlit + cron + cron-train (общий base-слой собирается один раз)
 docker-build-prod:
-	$(COMPOSE_PROD) build streamlit cron
+	$(COMPOSE_PROD) build streamlit cron cron-train
 
 # Собрать только Streamlit-образ production
 docker-build-streamlit-prod:
 	$(COMPOSE_PROD) build streamlit
 
-# Собрать только Cron-образ production
+# Собрать только Cron-образ production (парсинг/обработка данных)
 docker-build-cron-prod:
 	$(COMPOSE_PROD) build cron
+
+# Собрать только Cron-train образ (LSTM + GPU)
+docker-build-cron-train-prod:
+	$(COMPOSE_PROD) build cron-train
 
 # Остановить docker контейнеры и удалить volumes, указанные в docker-compose.yml.
 # Полезно, если нужно очистить тестовые данные в БД.

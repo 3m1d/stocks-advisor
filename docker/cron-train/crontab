@@ -1,0 +1,7 @@
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+TZ=Europe/Moscow
+
+# m h dom mon dow user command
+# LSTM retrain (PRD): воскресенье 08:00
+0 8 * * 0 root /app/docker/cron-train/run-lstm-retrain.sh >> /var/log/cron/lstm_retrain.log 2>&1

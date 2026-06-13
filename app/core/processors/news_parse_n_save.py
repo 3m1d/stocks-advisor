@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 from datetime import date, datetime
 
@@ -117,8 +118,9 @@ class NewsParserProcessor:
         parsed_count = 0
         saved_count = 0
         loop = asyncio.get_running_loop()
+        mp_context = multiprocessing.get_context('spawn')
 
-        with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
+        with ProcessPoolExecutor(max_workers=self.max_workers, mp_context=mp_context) as executor:
             futures = [
                 loop.run_in_executor(
                     executor,

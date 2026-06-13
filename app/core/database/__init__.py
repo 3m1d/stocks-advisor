@@ -9,10 +9,12 @@ from app.core.database.repositories.news_article import (
     news_articles_to_dataframe,
 )
 from app.core.database.repositories.request_history import RequestHistoryRepository
-from app.core.database.session import DBSession, engine, get_db_session, get_session
+from app.core.database.session import DBSession, engine, get_async_session_factory, get_db_session, get_engine, get_session
 
 __all__ = [
     'engine',
+    'get_engine',
+    'get_async_session_factory',
     'get_session',
     'get_db_session',
     'DBSession',
